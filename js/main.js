@@ -8,6 +8,24 @@
   gsap.registerPlugin(ScrollTrigger);
 
   /* ---------------------------------------------------------
+     MOTION PREFERENCE
+
+     Everything cinematic here is decorative. When the visitor asks for
+     reduced motion we skip building the animations rather than building
+     and disabling them — a `.from()` tween that never runs leaves the
+     element at its natural, visible state, whereas one that is created
+     and then killed can strand it mid-fade.
+  --------------------------------------------------------- */
+  var reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var REDUCED = reduceQuery.matches;
+
+  // The site builds its scroll rig once at load; honouring a mid-session
+  // change means rebuilding it, and a reload is the honest way to do that.
+  reduceQuery.addEventListener("change", function () {
+    window.location.reload();
+  });
+
+  /* ---------------------------------------------------------
      LOADER
   --------------------------------------------------------- */
   var loader = document.getElementById("loader");
@@ -48,19 +66,23 @@
   /* ---------------------------------------------------------
      LENIS SMOOTH SCROLL <-> SCROLLTRIGGER
   --------------------------------------------------------- */
-  var lenis = new Lenis({
-    duration: 1.15,
-    easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
-    smoothWheel: true,
-    touchMultiplier: 1.1
-  });
+  // Smooth-scroll hijacking is itself a motion effect: leave the browser's
+  // native scrolling alone when reduced motion is requested.
+  if (!REDUCED) {
+    var lenis = new Lenis({
+      duration: 1.15,
+      easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
+      smoothWheel: true,
+      touchMultiplier: 1.1
+    });
 
-  lenis.on("scroll", ScrollTrigger.update);
+    lenis.on("scroll", ScrollTrigger.update);
 
-  gsap.ticker.add(function (time) {
-    lenis.raf(time * 1000);
-  });
-  gsap.ticker.lagSmoothing(0);
+    gsap.ticker.add(function (time) {
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
+  }
 
   /* ---------------------------------------------------------
      NAV
@@ -86,7 +108,9 @@
   var burger = document.getElementById("navBurger");
   if (burger) {
     burger.addEventListener("click", function () {
-      nav.classList.toggle("is-open");
+      var open = nav.classList.toggle("is-open");
+      burger.setAttribute("aria-expanded", open ? "true" : "false");
+      burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     });
     nav.querySelectorAll(".nav__links a, .nav__mark").forEach(function (a) {
       a.addEventListener("click", function () { nav.classList.remove("is-open"); });
@@ -126,6 +150,7 @@
      HERO INTRO
   --------------------------------------------------------- */
   function playHeroIntro() {
+    if (REDUCED) return;
     var tl = gsap.timeline({ defaults: { ease: "power4.out" } });
     tl.from(".hero__topbar", { y: -24, opacity: 0, duration: 0.9 }, 0.1)
       .from(".hero__car", { opacity: 0, scale: 1.08, filter: "brightness(0.4)", duration: 1.4, ease: "power3.out" }, 0.15)
@@ -145,46 +170,52 @@
   });
 
   /* Hero parallax on scroll */
-  gsap.to(".hero__car-wrap", {
-    yPercent: 12,
-    ease: "none",
-    scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-  });
-  gsap.to(".hero__video", {
-    yPercent: 10,
-    scale: 1.12,
-    ease: "none",
-    scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-  });
-  gsap.to(".hero__title-block", {
-    yPercent: -18,
-    opacity: 0.2,
-    ease: "none",
-    scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-  });
+  if (!REDUCED) {
+    gsap.to(".hero__car-wrap", {
+      yPercent: 12,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+    gsap.to(".hero__video", {
+      yPercent: 10,
+      scale: 1.12,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+    gsap.to(".hero__title-block", {
+      yPercent: -18,
+      opacity: 0.2,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+  }
 
   /* ---------------------------------------------------------
      SECTION HEAD REVEALS (generic)
   --------------------------------------------------------- */
-  document.querySelectorAll(".section-eyebrow, .section-title, .section-lede").forEach(function (el) {
-    if (el.closest(".hero") || el.closest(".reveal")) return;
-    gsap.from(el, {
-      y: 34, opacity: 0, duration: 1, ease: "power3.out",
-      scrollTrigger: { trigger: el, start: "top 88%", once: true }
+  if (!REDUCED) {
+    document.querySelectorAll(".section-eyebrow, .section-title, .section-lede").forEach(function (el) {
+      if (el.closest(".hero") || el.closest(".reveal")) return;
+      gsap.from(el, {
+        y: 34, opacity: 0, duration: 1, ease: "power3.out",
+        scrollTrigger: { trigger: el, start: "top 88%", once: true }
+      });
     });
-  });
+  }
 
   /* ---------------------------------------------------------
      COLLECTION — image parallax + stat counters
   --------------------------------------------------------- */
-  gsap.from("#collectionImage", {
-    scale: 1.18, duration: 1.4, ease: "power2.out",
-    scrollTrigger: { trigger: "#collectionImageWrap", start: "top 80%", once: true }
-  });
-  gsap.to("#collectionImage", {
-    yPercent: -8, ease: "none",
-    scrollTrigger: { trigger: "#collectionImageWrap", start: "top bottom", end: "bottom top", scrub: true }
-  });
+  // `transform` on #collectionImage belongs solely to the view-switching
+  // code below — a scrubbed tween here would overwrite the zoom on the next
+  // scroll tick. The intro animates the frame's opacity instead, and the
+  // depth that parallax used to provide now comes from the 3D tilt.
+  if (!REDUCED) {
+    gsap.from("#collectionImageWrap", {
+      opacity: 0, duration: 1.1, ease: "power2.out",
+      scrollTrigger: { trigger: "#showcaseViewport", start: "top 80%", once: true }
+    });
+  }
 
   /* ---------------------------------------------------------
      COLLECTION — interactive 3D showcase (tilt + view switching)
@@ -219,28 +250,34 @@
       if (!tiltRAF) tiltRAF = requestAnimationFrame(renderTilt);
     }
 
-    showcaseViewport.addEventListener("mousemove", function (e) {
-      var r = showcaseViewport.getBoundingClientRect();
-      var px = (e.clientX - r.left) / r.width;
-      var py = (e.clientY - r.top) / r.height;
-      targetX = (px - 0.5) * 14;   // rotateY
-      targetY = (0.5 - py) * 9;    // rotateX
-      showcaseGlow.style.left = (px * 100) + "%";
-      showcaseGlow.style.top = (py * 100) + "%";
-      queueTilt();
-    });
+    // Tilt is the decorative half of the showcase; the view tabs below are
+    // the functional half and stay available either way.
+    if (!REDUCED) {
+      showcaseViewport.addEventListener("mousemove", function (e) {
+        var r = showcaseViewport.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width;
+        var py = (e.clientY - r.top) / r.height;
+        targetX = (px - 0.5) * 14;   // rotateY
+        targetY = (0.5 - py) * 9;    // rotateX
+        showcaseGlow.style.left = (px * 100) + "%";
+        showcaseGlow.style.top = (py * 100) + "%";
+        queueTilt();
+      });
 
-    showcaseViewport.addEventListener("mouseleave", function () {
-      targetX = 0; targetY = 0;
-      queueTilt();
-    });
+      showcaseViewport.addEventListener("mouseleave", function () {
+        targetX = 0; targetY = 0;
+        queueTilt();
+      });
+    }
 
     document.querySelectorAll(".showcase__tab").forEach(function (tab) {
       tab.addEventListener("click", function () {
         var view = VIEWS[tab.dataset.view];
         if (!view) return;
         document.querySelectorAll(".showcase__tab").forEach(function (t) {
-          t.classList.toggle("is-active", t === tab);
+          var on = t === tab;
+          t.classList.toggle("is-active", on);
+          t.setAttribute("aria-pressed", on ? "true" : "false");
         });
         showcaseCar.style.objectPosition = view.position;
         showcaseCar.style.transform = "scale(" + view.scale + ")";
@@ -250,13 +287,18 @@
     });
   }
 
+  function writeCount(el, value, decimals) {
+    el.firstChild.nodeValue = decimals ? value.toFixed(decimals) : Math.round(value);
+  }
+
   function animateCount(el, target, decimals) {
+    // The number is the content, not the effect — reduced motion still
+    // needs the real figure, just without the count-up.
+    if (REDUCED) { writeCount(el, target, decimals); return; }
     var obj = { v: 0 };
     gsap.to(obj, {
       v: target, duration: 1.6, ease: "power2.out",
-      onUpdate: function () {
-        el.firstChild.nodeValue = decimals ? obj.v.toFixed(decimals) : Math.round(obj.v);
-      }
+      onUpdate: function () { writeCount(el, obj.v, decimals); }
     });
   }
 
@@ -267,7 +309,7 @@
     ScrollTrigger.create({
       trigger: card, start: "top 85%", once: true,
       onEnter: function () {
-        gsap.from(card, { y: 24, opacity: 0, duration: 0.7, ease: "power3.out" });
+        if (!REDUCED) gsap.from(card, { y: 24, opacity: 0, duration: 0.7, ease: "power3.out" });
         animateCount(valueEl, target, decimals);
       }
     });
@@ -373,9 +415,13 @@
 
   function startPerfFx() {
     if (perfVideo) perfVideo.play().catch(function () {});
-    if (!sparkInterval) sparkInterval = setInterval(spawnSpark, 90);
-    if (!emberInterval) emberInterval = setInterval(spawnEmber, 140);
-    if (perfHeat) gsap.to(perfHeat, { opacity: 1, duration: 1.2, ease: "power2.out" });
+    // Sparks and embers are the most motion-heavy thing on the page; the
+    // heat wash is a static gradient, so it stays either way.
+    if (!REDUCED) {
+      if (!sparkInterval) sparkInterval = setInterval(spawnSpark, 90);
+      if (!emberInterval) emberInterval = setInterval(spawnEmber, 140);
+    }
+    if (perfHeat) gsap.to(perfHeat, { opacity: 1, duration: REDUCED ? 0 : 1.2, ease: "power2.out" });
   }
 
   function stopPerfFx() {
@@ -398,30 +444,32 @@
     if (document.hidden) stopPerfFx();
   });
 
-  gsap.to(".performance__video", {
-    scale: 1.1, ease: "none",
-    scrollTrigger: { trigger: perfSection, start: "top bottom", end: "bottom top", scrub: true }
-  });
+  if (!REDUCED) {
+    gsap.to(".performance__video", {
+      scale: 1.1, ease: "none",
+      scrollTrigger: { trigger: perfSection, start: "top bottom", end: "bottom top", scrub: true }
+    });
 
-  /* ---------------------------------------------------------
-     SHOWROOM map subtle parallax
-  --------------------------------------------------------- */
-  gsap.from(".showroom__map", {
-    opacity: 0, scale: 0.92, duration: 1.1, ease: "power3.out",
-    scrollTrigger: { trigger: ".showroom__map", start: "top 85%", once: true }
-  });
+    /* ---------------------------------------------------------
+       SHOWROOM map subtle parallax
+    --------------------------------------------------------- */
+    gsap.from(".showroom__map", {
+      opacity: 0, scale: 0.92, duration: 1.1, ease: "power3.out",
+      scrollTrigger: { trigger: ".showroom__map", start: "top 85%", once: true }
+    });
 
-  /* ---------------------------------------------------------
-     STORY reveal
-  --------------------------------------------------------- */
-  gsap.from(".story__lead", {
-    opacity: 0, y: 24, duration: 1, ease: "power3.out",
-    scrollTrigger: { trigger: ".story__grid", start: "top 82%", once: true }
-  });
-  gsap.from(".story__col", {
-    opacity: 0, y: 24, duration: 0.9, stagger: 0.15, ease: "power3.out",
-    scrollTrigger: { trigger: ".story__columns", start: "top 82%", once: true }
-  });
+    /* ---------------------------------------------------------
+       STORY reveal
+    --------------------------------------------------------- */
+    gsap.from(".story__lead", {
+      opacity: 0, y: 24, duration: 1, ease: "power3.out",
+      scrollTrigger: { trigger: ".story__grid", start: "top 82%", once: true }
+    });
+    gsap.from(".story__col", {
+      opacity: 0, y: 24, duration: 0.9, stagger: 0.15, ease: "power3.out",
+      scrollTrigger: { trigger: ".story__columns", start: "top 82%", once: true }
+    });
+  }
 
   /* ---------------------------------------------------------
      CONSULTATION FORM
