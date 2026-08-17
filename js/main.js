@@ -1,0 +1,667 @@
+/* ============================================================
+   PAGANI DUBAI — Zonda R Private Showroom
+   Lenis + GSAP ScrollTrigger cinematic interactions
+   ============================================================ */
+(function () {
+  "use strict";
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------------------------------------------------------
+     MOTION PREFERENCE
+
+     Everything cinematic here is decorative. When the visitor asks for
+     reduced motion we skip building the animations rather than building
+     and disabling them — a `.from()` tween that never runs leaves the
+     element at its natural, visible state, whereas one that is created
+     and then killed can strand it mid-fade.
+  --------------------------------------------------------- */
+  var reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var REDUCED = reduceQuery.matches;
+
+  // The site builds its scroll rig once at load; honouring a mid-session
+  // change means rebuilding it, and a reload is the honest way to do that.
+  reduceQuery.addEventListener("change", function () {
+    window.location.reload();
+  });
+
+  /* ---------------------------------------------------------
+     LOADER
+  --------------------------------------------------------- */
+  var loader = document.getElementById("loader");
+  var loaderProgress = document.getElementById("loaderProgress");
+  var heroVideo = document.getElementById("heroVideo");
+
+  function finishLoader() {
+    if (!loader) return;
+    loaderProgress.style.width = "100%";
+    setTimeout(function () {
+      loader.classList.add("is-hidden");
+      document.body.style.overflow = "";
+      playHeroIntro();
+    }, 260);
+  }
+
+  (function fakeProgress() {
+    var p = 0;
+    var iv = setInterval(function () {
+      p += Math.random() * 18;
+      if (p >= 92) { p = 92; clearInterval(iv); }
+      loaderProgress.style.width = p + "%";
+    }, 140);
+    var done = false;
+    function markReady() {
+      if (done) return;
+      done = true;
+      clearInterval(iv);
+      finishLoader();
+    }
+    if (heroVideo) {
+      if (heroVideo.readyState >= 3) markReady();
+      else heroVideo.addEventListener("canplaythrough", markReady, { once: true });
+    }
+    setTimeout(markReady, 2200);
+  })();
+
+  /* ---------------------------------------------------------
+     LENIS SMOOTH SCROLL <-> SCROLLTRIGGER
+  --------------------------------------------------------- */
+  // Smooth-scroll hijacking is itself a motion effect: leave the browser's
+  // native scrolling alone when reduced motion is requested.
+  if (!REDUCED) {
+    var lenis = new Lenis({
+      duration: 1.15,
+      easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
+      smoothWheel: true,
+      touchMultiplier: 1.1
+    });
+
+    lenis.on("scroll", ScrollTrigger.update);
+
+    gsap.ticker.add(function (time) {
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* ---------------------------------------------------------
+     NAV
+  --------------------------------------------------------- */
+  var nav = document.getElementById("siteNav");
+  ScrollTrigger.create({
+    start: 40,
+    end: "max",
+    onUpdate: function (self) {
+      nav.classList.toggle("is-scrolled", self.scroll() > 40);
+    }
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    link.addEventListener("click", function (e) {
+      var target = document.querySelector(link.getAttribute("href"));
+      if (!target) return;
+      e.preventDefault();
+      lenis.scrollTo(target, { offset: -70, duration: 1.4 });
+    });
+  });
+
+  var burger = document.getElementById("navBurger");
+  if (burger) {
+    burger.addEventListener("click", function () {
+      var open = nav.classList.toggle("is-open");
+      burger.setAttribute("aria-expanded", open ? "true" : "false");
+      burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+    nav.querySelectorAll(".nav__links a, .nav__mark").forEach(function (a) {
+      a.addEventListener("click", function () { nav.classList.remove("is-open"); });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     SCROLL RAIL — progress + current section index
+  --------------------------------------------------------- */
+  var rail = document.getElementById("scrollRail");
+  var railFill = document.getElementById("railFill");
+  var railIndex = document.getElementById("railIndex");
+  var railSections = gsap.utils.toArray("main > section, main > footer");
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  var railTotalEl = document.querySelector(".rail__total");
+  if (railTotalEl) railTotalEl.textContent = pad(railSections.length);
+
+  ScrollTrigger.create({
+    start: 0, end: "max",
+    onUpdate: function (self) {
+      railFill.style.height = (self.progress * 100) + "%";
+      rail.classList.toggle("is-visible", self.scroll() > window.innerHeight * 0.5);
+
+      // current section = last one whose top has passed the viewport midpoint
+      var mid = window.innerHeight * 0.5;
+      var current = 0;
+      railSections.forEach(function (sec, i) {
+        if (sec.getBoundingClientRect().top <= mid) current = i;
+      });
+      railIndex.textContent = pad(current + 1);
+    }
+  });
+
+  /* ---------------------------------------------------------
+     HERO INTRO
+  --------------------------------------------------------- */
+  function playHeroIntro() {
+    if (REDUCED) return;
+    var tl = gsap.timeline({ defaults: { ease: "power4.out" } });
+    tl.from(".hero__topbar", { y: -24, opacity: 0, duration: 0.9 }, 0.1)
+      .from(".hero__car", { opacity: 0, scale: 1.08, filter: "brightness(0.4)", duration: 1.4, ease: "power3.out" }, 0.15)
+      .from(".hero__title .reveal-line", {
+        yPercent: 120, opacity: 0, duration: 1.1, stagger: 0.12
+      }, 0.5)
+      .from(".hero__tagline", { y: 16, opacity: 0, duration: 0.8 }, 0.85)
+      .from(".hero__scroll-cue", { opacity: 0, duration: 0.8 }, 1.0)
+      // clearProps is required: a lingering transform on .nav would become the
+      // containing block for the position:fixed mobile menu, clipping it to the header.
+      .from(".nav", { y: -20, opacity: 0, duration: 0.7, clearProps: "transform" }, 0.2);
+  }
+
+  // Fallback in case JS runs before load event races
+  window.addEventListener("load", function () {
+    if (loader && !loader.classList.contains("is-hidden")) finishLoader();
+  });
+
+  /* Hero parallax on scroll */
+  if (!REDUCED) {
+    gsap.to(".hero__car-wrap", {
+      yPercent: 12,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+    gsap.to(".hero__video", {
+      yPercent: 10,
+      scale: 1.12,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+    gsap.to(".hero__title-block", {
+      yPercent: -18,
+      opacity: 0.2,
+      ease: "none",
+      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     SECTION HEAD REVEALS (generic)
+  --------------------------------------------------------- */
+  if (!REDUCED) {
+    document.querySelectorAll(".section-eyebrow, .section-title, .section-lede").forEach(function (el) {
+      if (el.closest(".hero") || el.closest(".reveal")) return;
+      gsap.from(el, {
+        y: 34, opacity: 0, duration: 1, ease: "power3.out",
+        scrollTrigger: { trigger: el, start: "top 88%", once: true }
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     COLLECTION — image parallax + stat counters
+  --------------------------------------------------------- */
+  // `transform` on #collectionImage belongs solely to the view-switching
+  // code below — a scrubbed tween here would overwrite the zoom on the next
+  // scroll tick. The intro animates the frame's opacity instead, and the
+  // depth that parallax used to provide now comes from the 3D tilt.
+  if (!REDUCED) {
+    gsap.from("#collectionImageWrap", {
+      opacity: 0, duration: 1.1, ease: "power2.out",
+      scrollTrigger: { trigger: "#showcaseViewport", start: "top 80%", once: true }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     COLLECTION — interactive 3D showcase (tilt + view switching)
+  --------------------------------------------------------- */
+  var showcaseViewport = document.getElementById("showcaseViewport");
+  var showcaseDepth = document.getElementById("showcaseDepth");
+  var showcaseGlow = document.getElementById("showcaseGlow");
+  var showcaseCar = document.getElementById("collectionImage");
+  var showcaseLabel = document.getElementById("showcaseLabel");
+
+  var VIEWS = {
+    profile: { position: "center 30%", scale: 1,    label: "Profile" },
+    front:   { position: "72% 42%",    scale: 1.55, label: "Front" },
+    wheel:   { position: "30% 66%",    scale: 2.1,  label: "Detail" }
+  };
+
+  if (showcaseViewport && showcaseDepth) {
+    var tiltX = 0, tiltY = 0, targetX = 0, targetY = 0, tiltRAF = null;
+
+    function renderTilt() {
+      tiltX += (targetX - tiltX) * 0.12;
+      tiltY += (targetY - tiltY) * 0.12;
+      showcaseDepth.style.transform =
+        "rotateX(" + tiltY.toFixed(3) + "deg) rotateY(" + tiltX.toFixed(3) + "deg)";
+      if (Math.abs(targetX - tiltX) > 0.01 || Math.abs(targetY - tiltY) > 0.01) {
+        tiltRAF = requestAnimationFrame(renderTilt);
+      } else {
+        tiltRAF = null;
+      }
+    }
+    function queueTilt() {
+      if (!tiltRAF) tiltRAF = requestAnimationFrame(renderTilt);
+    }
+
+    // Tilt is the decorative half of the showcase; the view tabs below are
+    // the functional half and stay available either way.
+    if (!REDUCED) {
+      showcaseViewport.addEventListener("mousemove", function (e) {
+        var r = showcaseViewport.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width;
+        var py = (e.clientY - r.top) / r.height;
+        targetX = (px - 0.5) * 14;   // rotateY
+        targetY = (0.5 - py) * 9;    // rotateX
+        showcaseGlow.style.left = (px * 100) + "%";
+        showcaseGlow.style.top = (py * 100) + "%";
+        queueTilt();
+      });
+
+      showcaseViewport.addEventListener("mouseleave", function () {
+        targetX = 0; targetY = 0;
+        queueTilt();
+      });
+    }
+
+    document.querySelectorAll(".showcase__tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var view = VIEWS[tab.dataset.view];
+        if (!view) return;
+        document.querySelectorAll(".showcase__tab").forEach(function (t) {
+          var on = t === tab;
+          t.classList.toggle("is-active", on);
+          t.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        showcaseCar.style.objectPosition = view.position;
+        showcaseCar.style.transform = "scale(" + view.scale + ")";
+        showcaseLabel.textContent = view.label;
+        gsap.fromTo(showcaseLabel, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
+      });
+    });
+  }
+
+  function writeCount(el, value, decimals) {
+    el.firstChild.nodeValue = decimals ? value.toFixed(decimals) : Math.round(value);
+  }
+
+  function animateCount(el, target, decimals) {
+    // The number is the content, not the effect — reduced motion still
+    // needs the real figure, just without the count-up.
+    if (REDUCED) { writeCount(el, target, decimals); return; }
+    var obj = { v: 0 };
+    gsap.to(obj, {
+      v: target, duration: 1.6, ease: "power2.out",
+      onUpdate: function () { writeCount(el, obj.v, decimals); }
+    });
+  }
+
+  document.querySelectorAll(".stat-card").forEach(function (card) {
+    var valueEl = card.querySelector(".stat-card__value");
+    var target = parseFloat(card.dataset.value);
+    var decimals = card.dataset.decimals ? parseInt(card.dataset.decimals, 10) : 0;
+    ScrollTrigger.create({
+      trigger: card, start: "top 85%", once: true,
+      onEnter: function () {
+        if (!REDUCED) gsap.from(card, { y: 24, opacity: 0, duration: 0.7, ease: "power3.out" });
+        animateCount(valueEl, target, decimals);
+      }
+    });
+  });
+
+  document.querySelectorAll(".perf-metric__value").forEach(function (el) {
+    var target = parseFloat(el.dataset.count);
+    var decimals = (el.dataset.count.indexOf(".") > -1) ? 2 : 0;
+    ScrollTrigger.create({
+      trigger: el, start: "top 90%", once: true,
+      onEnter: function () { animateCount(el, target, decimals); }
+    });
+  });
+
+  /* ---------------------------------------------------------
+     3D REVEAL — video scrubbed by scroll + callouts
+  --------------------------------------------------------- */
+  var revealVideo = document.getElementById("revealVideo");
+  var revealCallouts = gsap.utils.toArray(".reveal__callout");
+  var revealProgressBar = document.getElementById("revealProgressBar");
+  var revealStatus = document.getElementById("revealStatus");
+  var revealStatusText = document.getElementById("revealStatusText");
+  var revealBufferBar = document.getElementById("revealBufferBar");
+
+  /* --- 1. Buffer the clip up front -------------------------------------
+     Scrubbing seeks to arbitrary timestamps. Against a streamed file each
+     seek is a range request, so the frame lands late or not at all and the
+     scrub looks broken. Fetching the whole clip to a blob first makes every
+     seek local and instant. It is a few MB, and it downloads while the
+     visitor is still reading the sections above.                          */
+  var revealReady = false;
+
+  function markRevealReady() {
+    if (revealReady) return;
+    revealReady = true;
+    if (revealStatus) revealStatus.classList.add("is-ready");
+  }
+
+  function bufferRevealVideo() {
+    if (!revealVideo) return;
+    var src = revealVideo.querySelector("source");
+    if (!src || !window.fetch) { markRevealReady(); return; }
+
+    fetch(src.src)
+      .then(function (res) {
+        if (!res.ok || !res.body) throw new Error("no stream");
+        var total = +res.headers.get("Content-Length") || 0;
+        var loaded = 0;
+        var chunks = [];
+        var reader = res.body.getReader();
+
+        return (function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) return new Blob(chunks, { type: "video/mp4" });
+            chunks.push(r.value);
+            loaded += r.value.length;
+            if (total && revealBufferBar) {
+              revealBufferBar.style.width = Math.round((loaded / total) * 100) + "%";
+            }
+            return pump();
+          });
+        })();
+      })
+      .then(function (blob) {
+        // A `src` property beats <source> children, but metadata has to
+        // re-parse against the blob before duration is usable — so always
+        // reload rather than trusting a readyState left over from the
+        // streamed source, and don't hang forever if the decode fails.
+        revealVideo.src = URL.createObjectURL(blob);
+        return new Promise(function (resolve) {
+          var done = false;
+          function finish() { if (!done) { done = true; resolve(); } }
+          revealVideo.addEventListener("loadedmetadata", finish, { once: true });
+          revealVideo.addEventListener("error", finish, { once: true });
+          setTimeout(finish, 8000);
+          revealVideo.load();
+        });
+      })
+      .then(function () {
+        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
+        markRevealReady();
+        ScrollTrigger.refresh();
+      })
+      .catch(function () {
+        // Range streaming still scrubs, just less smoothly — better than nothing.
+        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
+        markRevealReady();
+      });
+  }
+
+  /* --- 2. Coalesce seeks ------------------------------------------------
+     Assigning currentTime while a seek is already in flight makes the
+     browser drop the intermediate targets, which is what makes naive
+     scrubbing stutter. Keep exactly one seek in flight and always resume
+     toward the newest target once it lands.                               */
+  var pendingTime = null;
+  var isSeeking = false;
+
+  function flushSeek() {
+    if (isSeeking || pendingTime === null || !revealVideo || !revealVideo.duration) return;
+    var t = pendingTime;
+    pendingTime = null;
+    isSeeking = true;
+    try { revealVideo.currentTime = t; } catch (e) { isSeeking = false; }
+  }
+
+  if (revealVideo) {
+    revealVideo.addEventListener("seeked", function () {
+      isSeeking = false;
+      flushSeek();
+    });
+    revealVideo.addEventListener("error", function () {
+      isSeeking = false;
+      markRevealReady();
+    });
+  }
+
+  function seekRevealTo(progress) {
+    if (!revealVideo || !revealVideo.duration) return;
+    // hold a hair inside the end: seeking exactly to duration can park on a
+    // blank frame in some browsers
+    pendingTime = Math.min(progress, 0.999) * revealVideo.duration;
+    flushSeek();
+  }
+
+  /* --- 3. Drive it from scroll ----------------------------------------
+     The bar and the text reveals are pure scroll-math and run the moment
+     the section is on screen; the video is layered on when it is ready, so
+     a slow network never leaves the section looking dead.                 */
+  ScrollTrigger.create({
+    trigger: ".reveal",
+    start: "top top",
+    end: "bottom bottom",
+    scrub: 0.4,
+    onUpdate: function (self) {
+      var progress = self.progress;
+      seekRevealTo(progress);
+      revealProgressBar.style.width = (progress * 100) + "%";
+      revealCallouts.forEach(function (c) {
+        var at = parseFloat(c.dataset.at);
+        c.classList.toggle("is-active", progress >= at && progress < at + 0.20);
+      });
+    }
+  });
+
+  // Start buffering once the visitor is on their way, so the hero is not
+  // competing with it for bandwidth on first paint.
+  ScrollTrigger.create({
+    trigger: ".collection", start: "top bottom", once: true,
+    onEnter: bufferRevealVideo
+  });
+
+  /* ---------------------------------------------------------
+     PERFORMANCE — driving video autoplay in view + sparks
+  --------------------------------------------------------- */
+  var perfVideo = document.getElementById("perfVideo");
+  var perfSection = document.querySelector(".performance");
+  var sparkHost = document.getElementById("perfSparks");
+  var sparkInterval = null;
+
+  function spawnSpark() {
+    var s = document.createElement("span");
+    s.className = "spark";
+    var x = 40 + Math.random() * 55;
+    var drift = (Math.random() - 0.5) * 140;
+    var rise = 160 + Math.random() * 260;
+    var size = 1.5 + Math.random() * 2.5;
+    s.style.left = x + "%";
+    s.style.width = size + "px";
+    s.style.height = size + "px";
+    sparkHost.appendChild(s);
+    gsap.fromTo(s,
+      { y: 0, opacity: 1 },
+      {
+        y: -rise, x: drift, opacity: 0, duration: 1.1 + Math.random() * 0.8, ease: "power1.out",
+        onComplete: function () { s.remove(); }
+      }
+    );
+  }
+
+  // Embers read as fire rather than electrical spark: hotter colour, larger,
+  // slower, and they wander sideways as they rise.
+  function spawnEmber() {
+    var e = document.createElement("span");
+    e.className = "ember";
+    var x = 8 + Math.random() * 84;
+    var drift = (Math.random() - 0.5) * 90;
+    var rise = 220 + Math.random() * 340;
+    var size = 2 + Math.random() * 4;
+    e.style.left = x + "%";
+    e.style.width = size + "px";
+    e.style.height = size + "px";
+    sparkHost.appendChild(e);
+    gsap.timeline({ onComplete: function () { e.remove(); } })
+      .fromTo(e, { y: 0, opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power1.out" })
+      .to(e, {
+        y: -rise, x: drift, opacity: 0,
+        duration: 1.8 + Math.random() * 1.4, ease: "power1.out"
+      }, 0)
+      .to(e, {
+        x: drift + (Math.random() - 0.5) * 60,
+        duration: 0.9, repeat: 1, yoyo: true, ease: "sine.inOut"
+      }, 0.2);
+  }
+
+  var emberInterval = null;
+  var perfHeat = document.getElementById("perfHeat");
+
+  function startPerfFx() {
+    if (perfVideo) perfVideo.play().catch(function () {});
+    // Sparks and embers are the most motion-heavy thing on the page; the
+    // heat wash is a static gradient, so it stays either way.
+    if (!REDUCED) {
+      if (!sparkInterval) sparkInterval = setInterval(spawnSpark, 90);
+      if (!emberInterval) emberInterval = setInterval(spawnEmber, 140);
+    }
+    if (perfHeat) gsap.to(perfHeat, { opacity: 1, duration: REDUCED ? 0 : 1.2, ease: "power2.out" });
+  }
+
+  function stopPerfFx() {
+    if (sparkInterval) { clearInterval(sparkInterval); sparkInterval = null; }
+    if (emberInterval) { clearInterval(emberInterval); emberInterval = null; }
+    if (perfHeat) gsap.to(perfHeat, { opacity: 0, duration: 0.6, ease: "power2.in" });
+  }
+
+  ScrollTrigger.create({
+    trigger: perfSection, start: "top 70%", end: "bottom 30%",
+    onEnter: startPerfFx,
+    onLeave: stopPerfFx,
+    onEnterBack: startPerfFx,
+    onLeaveBack: stopPerfFx
+  });
+
+  // Particles are wasted work in a hidden tab, and pausing avoids a
+  // burst of queued tweens when the user returns.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopPerfFx();
+  });
+
+  if (!REDUCED) {
+    gsap.to(".performance__video", {
+      scale: 1.1, ease: "none",
+      scrollTrigger: { trigger: perfSection, start: "top bottom", end: "bottom top", scrub: true }
+    });
+
+    /* ---------------------------------------------------------
+       SHOWROOM map subtle parallax
+    --------------------------------------------------------- */
+    gsap.from(".showroom__map", {
+      opacity: 0, scale: 0.92, duration: 1.1, ease: "power3.out",
+      scrollTrigger: { trigger: ".showroom__map", start: "top 85%", once: true }
+    });
+
+    /* ---------------------------------------------------------
+       STORY reveal
+    --------------------------------------------------------- */
+    gsap.from(".story__lead", {
+      opacity: 0, y: 24, duration: 1, ease: "power3.out",
+      scrollTrigger: { trigger: ".story__grid", start: "top 82%", once: true }
+    });
+    gsap.from(".story__col", {
+      opacity: 0, y: 24, duration: 0.9, stagger: 0.15, ease: "power3.out",
+      scrollTrigger: { trigger: ".story__columns", start: "top 82%", once: true }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     CONSULTATION FORM
+  --------------------------------------------------------- */
+  var form = document.getElementById("consultForm");
+  var success = document.getElementById("consultSuccess");
+  var resetBtn = document.getElementById("consultReset");
+
+  function validateField(field) {
+    var input = field.querySelector("input, textarea");
+    if (!input.hasAttribute("required")) return true;
+    var valid = input.checkValidity() && input.value.trim() !== "";
+    field.classList.toggle("is-invalid", !valid);
+
+    // "Please choose a date" is the wrong complaint when one *is* chosen and
+    // simply falls outside the bookable window — say which it is.
+    if (input.id === "cf-date") {
+      var err = field.querySelector(".field__error");
+      if (err) {
+        err.textContent = (!valid && input.value)
+          ? "Please choose a date within the next year"
+          : "Please choose a date";
+      }
+    }
+    return valid;
+  }
+
+  // A viewing can only be booked forward. Set in JS rather than hard-coding a
+  // date in the markup, which would silently go stale the day after shipping.
+  var dateField = document.getElementById("cf-date");
+  if (dateField) {
+    var today = new Date();
+    var horizon = new Date(today.getTime());
+    horizon.setFullYear(horizon.getFullYear() + 1);
+    var iso = function (d) { return d.toISOString().slice(0, 10); };
+    dateField.min = iso(today);
+    dateField.max = iso(horizon);
+  }
+
+  if (form) {
+    form.querySelectorAll(".field input, .field textarea").forEach(function (input) {
+      input.setAttribute("placeholder", " ");
+      input.addEventListener("blur", function () { validateField(input.closest(".field")); });
+      input.addEventListener("input", function () {
+        var field = input.closest(".field");
+        if (field.classList.contains("is-invalid")) validateField(field);
+      });
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var fields = form.querySelectorAll(".field");
+      var allValid = true;
+      fields.forEach(function (f) { if (!validateField(f)) allValid = false; });
+      if (!allValid) {
+        var firstInvalid = form.querySelector(".field.is-invalid input, .field.is-invalid textarea");
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
+      gsap.to(form, {
+        opacity: 0, y: -12, duration: 0.35, ease: "power2.in",
+        onComplete: function () {
+          form.classList.add("is-hidden");
+          success.classList.add("is-visible");
+          gsap.fromTo(success, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+          var path = success.querySelector(".consult-success__mark path");
+          var len = path.getTotalLength();
+          gsap.fromTo(path, { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 0.6, delay: 0.2, ease: "power2.out" });
+        }
+      });
+    });
+
+    if (resetBtn) {
+      resetBtn.addEventListener("click", function () {
+        form.reset();
+        form.querySelectorAll(".field").forEach(function (f) { f.classList.remove("is-invalid"); });
+        success.classList.remove("is-visible");
+        form.classList.remove("is-hidden");
+        gsap.set(form, { opacity: 1, y: 0 });
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------
+     Refresh ScrollTrigger after everything is laid out
+  --------------------------------------------------------- */
+  window.addEventListener("load", function () {
+    ScrollTrigger.refresh();
+  });
+})();
