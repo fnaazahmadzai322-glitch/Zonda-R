@@ -666,6 +666,15 @@ section{ position: relative; background: var(--black); }
   .hero__car-wrap{ width: 96vw; right: -6%; }
 }
 @media (max-width: 680px){
+  /* 400vh of sticky scrolling is a lot of thumb travel; the same five beats
+     read fine over a shorter track on a phone */
+  .reveal{ height: 280vh; }
+  .reveal .section-head--overlay{ padding-top: 76px; }
+  .reveal__callouts{ gap: 18px; }
+  .reveal__callout{ gap: 14px; }
+  .reveal__callout-index{ width: 34px; height: 34px; font-size: 13px; }
+  .reveal__status{ bottom: 56px; }
+
   .consult-form__row{ grid-template-columns: 1fr; }
   .contact__top{ grid-template-columns: 1fr; }
   .performance__row{ gap: 24px 40px; }

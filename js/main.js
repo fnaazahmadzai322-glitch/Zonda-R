@@ -588,7 +588,30 @@
     if (!input.hasAttribute("required")) return true;
     var valid = input.checkValidity() && input.value.trim() !== "";
     field.classList.toggle("is-invalid", !valid);
+
+    // "Please choose a date" is the wrong complaint when one *is* chosen and
+    // simply falls outside the bookable window — say which it is.
+    if (input.id === "cf-date") {
+      var err = field.querySelector(".field__error");
+      if (err) {
+        err.textContent = (!valid && input.value)
+          ? "Please choose a date within the next year"
+          : "Please choose a date";
+      }
+    }
     return valid;
+  }
+
+  // A viewing can only be booked forward. Set in JS rather than hard-coding a
+  // date in the markup, which would silently go stale the day after shipping.
+  var dateField = document.getElementById("cf-date");
+  if (dateField) {
+    var today = new Date();
+    var horizon = new Date(today.getTime());
+    horizon.setFullYear(horizon.getFullYear() + 1);
+    var iso = function (d) { return d.toISOString().slice(0, 10); };
+    dateField.min = iso(today);
+    dateField.max = iso(horizon);
   }
 
   if (form) {
