@@ -23,6 +23,12 @@
 
 <div class="grain"></div>
 
+<aside class="rail" id="scrollRail" aria-hidden="true">
+  <span class="rail__index" id="railIndex">01</span>
+  <div class="rail__track"><span id="railFill"></span></div>
+  <span class="rail__total">08</span>
+</aside>
+
 <header class="nav" id="siteNav">
   <a href="#hero" class="nav__mark">
     <svg viewBox="0 0 100 100" class="nav__triangle" aria-hidden="true"><polygon points="50,12 92,86 8,86"/></svg>
@@ -87,8 +93,30 @@
     </div>
 
     <div class="collection__stage">
-      <div class="collection__image-wrap" id="collectionImageWrap">
-        <img src="car%20photo/RH.jpg" alt="Pagani Zonda R rear three-quarter view" class="collection__image" id="collectionImage">
+      <div class="showcase" id="showcase">
+        <div class="showcase__viewport" id="showcaseViewport">
+          <div class="showcase__depth" id="showcaseDepth">
+            <div class="showcase__glow" id="showcaseGlow"></div>
+            <div class="showcase__grid"></div>
+            <div class="collection__image-wrap" id="collectionImageWrap">
+              <img src="car%20photo/RH.jpg" alt="Pagani Zonda R rear three-quarter view" class="collection__image" id="collectionImage">
+            </div>
+            <span class="showcase__reticle showcase__reticle--tl"></span>
+            <span class="showcase__reticle showcase__reticle--tr"></span>
+            <span class="showcase__reticle showcase__reticle--bl"></span>
+            <span class="showcase__reticle showcase__reticle--br"></span>
+          </div>
+          <div class="showcase__readout">
+            <span class="showcase__readout-label" id="showcaseLabel">Profile</span>
+            <span class="showcase__readout-hint">Move cursor to explore</span>
+          </div>
+        </div>
+
+        <div class="showcase__tabs" id="showcaseTabs">
+          <button type="button" class="showcase__tab is-active" data-view="profile"><em>01</em>Profile</button>
+          <button type="button" class="showcase__tab" data-view="front"><em>02</em>Front</button>
+          <button type="button" class="showcase__tab" data-view="wheel"><em>03</em>Detail</button>
+        </div>
       </div>
 
       <div class="collection__stats">
@@ -166,6 +194,7 @@
       <source src="performance/Automotive%20Exploded%20View%20Video%20%283%29.mp4" type="video/mp4">
     </video>
     <div class="performance__scrim"></div>
+    <div class="performance__heat" id="perfHeat"></div>
     <div class="performance__sparks" id="perfSparks"></div>
 
     <div class="performance__content">

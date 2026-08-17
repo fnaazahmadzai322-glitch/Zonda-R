@@ -93,6 +93,26 @@ input, textarea{ font-family: inherit; }
 }
 
 /* ============================================================
+   SCROLL RAIL
+   ============================================================ */
+.rail{
+  position: fixed; right: clamp(14px, 2vw, 26px); top: 50%; transform: translateY(-50%);
+  z-index: 480; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  opacity: 0; transition: opacity .6s var(--ease); pointer-events: none;
+}
+.rail.is-visible{ opacity: 1; }
+.rail__index{
+  font-family: var(--font-display); font-size: 15px; letter-spacing: 0.1em; color: var(--green);
+  text-shadow: 0 0 12px var(--green-glow);
+}
+.rail__total{ font-family: var(--font-display); font-size: 13px; letter-spacing: 0.1em; color: var(--grey-dim); }
+.rail__track{ width: 1px; height: 140px; background: var(--line-2); position: relative; overflow: hidden; }
+.rail__track span{
+  position: absolute; top: 0; left: 0; width: 100%; height: 0%;
+  background: var(--green); box-shadow: 0 0 10px var(--green-glow);
+}
+
+/* ============================================================
    NAV
    ============================================================ */
 .nav{
@@ -238,11 +258,78 @@ section{ position: relative; background: var(--black); }
   padding: 0 clamp(20px,4vw,56px);
   display: grid; grid-template-columns: 1.3fr 1fr; gap: 60px; align-items: center;
 }
-.collection__image-wrap{
-  position: relative; border-radius: 4px; overflow: hidden; aspect-ratio: 16/10;
-  background: var(--carbon);
+/* --- interactive 3D showcase --- */
+.showcase{ display: flex; flex-direction: column; gap: 22px; }
+.showcase__viewport{
+  position: relative; perspective: 1400px; border: 1px solid var(--line);
+  border-radius: 4px; overflow: hidden; background: var(--carbon);
 }
-.collection__image{ width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.showcase__depth{
+  position: relative; transform-style: preserve-3d;
+  transition: transform .18s var(--ease);
+  will-change: transform;
+}
+.showcase__glow{
+  position: absolute; width: 46%; aspect-ratio: 1; left: 0; top: 0; z-index: 0;
+  background: radial-gradient(circle, var(--green-glow) 0%, transparent 68%);
+  opacity: 0; filter: blur(26px); transform: translate(-50%,-50%);
+  transition: opacity .4s var(--ease);
+}
+.showcase__viewport:hover .showcase__glow{ opacity: 0.45; }
+.showcase__grid{
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transition: opacity .45s var(--ease);
+}
+.showcase__viewport:hover .showcase__grid{ opacity: 1; }
+
+.collection__image-wrap{
+  position: relative; overflow: hidden; aspect-ratio: 16/10;
+  background: var(--carbon); z-index: 2;
+}
+.collection__image{
+  width: 100%; height: 100%; object-fit: cover; object-position: center 30%;
+  transform: scale(1); transition: transform .9s var(--ease), object-position .9s var(--ease);
+  will-change: transform;
+}
+
+/* corner reticles — read as a targeting/inspection HUD */
+.showcase__reticle{
+  position: absolute; width: 16px; height: 16px; z-index: 4; pointer-events: none;
+  border-color: var(--green); opacity: 0; transition: opacity .4s var(--ease);
+}
+.showcase__viewport:hover .showcase__reticle{ opacity: 0.9; }
+.showcase__reticle--tl{ top: 16px; left: 16px; border-top: 1px solid; border-left: 1px solid; }
+.showcase__reticle--tr{ top: 16px; right: 16px; border-top: 1px solid; border-right: 1px solid; }
+.showcase__reticle--bl{ bottom: 16px; left: 16px; border-bottom: 1px solid; border-left: 1px solid; }
+.showcase__reticle--br{ bottom: 16px; right: 16px; border-bottom: 1px solid; border-right: 1px solid; }
+
+.showcase__readout{
+  position: absolute; left: 20px; bottom: 18px; z-index: 5; display: flex; align-items: baseline; gap: 12px;
+  pointer-events: none;
+}
+.showcase__readout-label{
+  font-family: var(--font-display); font-size: 20px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--green); text-shadow: 0 0 14px var(--green-glow);
+}
+.showcase__readout-hint{
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--grey-dim);
+  opacity: 0; transition: opacity .4s var(--ease);
+}
+.showcase__viewport:hover .showcase__readout-hint{ opacity: 1; }
+
+.showcase__tabs{ display: flex; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.showcase__tab{
+  flex: 1; background: var(--black-2); padding: 15px 12px; display: flex; align-items: baseline;
+  justify-content: center; gap: 8px; color: var(--grey); font-size: 12px; letter-spacing: 0.12em;
+  text-transform: uppercase; font-weight: 700;
+  transition: color .3s var(--ease), background .3s var(--ease);
+}
+.showcase__tab em{ font-style: normal; font-size: 10px; color: var(--green-dim); }
+.showcase__tab:hover{ color: var(--white); }
+.showcase__tab.is-active{ color: var(--black); background: var(--green); }
+.showcase__tab.is-active em{ color: rgba(0,0,0,0.5); }
 .collection__stats{ display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .stat-card{
   background: var(--black-2); padding: 30px 26px; display: flex; flex-direction: column; gap: 10px;
@@ -303,6 +390,21 @@ section{ position: relative; background: var(--black); }
 .spark{
   position: absolute; bottom: 0; width: 2px; height: 2px; border-radius: 50%;
   background: var(--green); box-shadow: 0 0 6px 1px var(--green-glow);
+}
+.ember{
+  position: absolute; bottom: 0; border-radius: 50%;
+  background: #ffb347;
+  box-shadow: 0 0 8px 2px rgba(255,138,42,0.75), 0 0 18px 5px rgba(255,72,0,0.35);
+}
+
+/* heat haze / fire wash rising off the road surface */
+.performance__heat{
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 100% at 50% 100%, rgba(255,106,0,0.30) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 80% at 22% 100%, rgba(255,60,0,0.20) 0%, transparent 72%),
+    radial-gradient(ellipse 34% 88% at 78% 100%, rgba(255,150,40,0.18) 0%, transparent 72%);
+  mix-blend-mode: screen; opacity: 0; filter: blur(8px);
 }
 .performance__content{ position: relative; z-index: 2; padding: 0 clamp(20px,4vw,56px) 90px; width: 100%; }
 .performance__row{
@@ -442,6 +544,8 @@ section{ position: relative; background: var(--black); }
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1080px){
+  /* decorative, and it would sit on top of content at this width */
+  .rail{ display: none; }
   .nav__links{
     position: fixed; inset: 0; z-index: 400;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
