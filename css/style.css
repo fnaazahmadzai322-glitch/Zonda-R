@@ -397,17 +397,56 @@ section{ position: relative; background: var(--black); }
   padding: 0 clamp(20px,4vw,56px);
 }
 .reveal__callout{
-  display: flex; align-items: center; gap: 18px; opacity: 0.25; transform: translateX(-16px);
-  transition: opacity .4s var(--ease), transform .4s var(--ease);
-  max-width: 560px;
+  display: flex; align-items: flex-start; gap: 20px;
+  max-width: 640px;
 }
-.reveal__callout.is-active{ opacity: 1; transform: translateX(0); }
 .reveal__callout-index{
-  font-family: var(--font-display); font-size: 15px; color: var(--green); border: 1px solid var(--green-dim);
-  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0;
+  font-family: var(--font-display); font-size: 15px; color: var(--green-dim);
+  border: 1px solid rgba(255,255,255,0.12);
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+  transition: color .45s var(--ease), border-color .45s var(--ease), box-shadow .45s var(--ease), transform .45s var(--ease);
 }
-.reveal__callout.is-active .reveal__callout-index{ box-shadow: 0 0 16px var(--green-glow); border-color: var(--green); }
-.reveal__callout-label{ font-size: clamp(15px,1.4vw,20px); letter-spacing: 0.01em; }
+.reveal__callout.is-active .reveal__callout-index{
+  color: var(--green); border-color: var(--green);
+  box-shadow: 0 0 18px var(--green-glow); transform: scale(1.06);
+}
+
+.reveal__callout-text{ display: flex; flex-direction: column; gap: 4px; }
+
+/* Each line sits in its own overflow-hidden mask and slides up out of it,
+   so the text is wiped into view rather than faded — the mask edge is what
+   makes it read as cinematic titling instead of a generic transition. */
+.reveal__mask{ display: block; overflow: hidden; }
+.reveal__line{
+  display: block;
+  font-size: clamp(16px, 1.5vw, 22px); letter-spacing: 0.01em; line-height: 1.35;
+  transform: translateY(115%);
+  transition: transform .7s var(--ease), opacity .7s var(--ease);
+  opacity: 0;
+}
+.reveal__sub{
+  font-size: clamp(12.5px, 1vw, 14.5px); color: var(--grey); font-weight: 300; line-height: 1.5;
+}
+.reveal__callout.is-active .reveal__line{ transform: translateY(0); opacity: 1; }
+/* the supporting line trails the headline slightly */
+.reveal__callout.is-active .reveal__sub{ transition-delay: .09s; }
+
+/* ---- buffering status ---- */
+.reveal__status{
+  position: absolute; left: clamp(20px,4vw,56px); bottom: 62px; z-index: 3;
+  display: flex; align-items: center; gap: 12px;
+  opacity: 1; transition: opacity .5s var(--ease);
+}
+.reveal__status.is-ready{ opacity: 0; pointer-events: none; }
+.reveal__status-bar{ width: 120px; height: 1px; background: var(--line-2); display: block; position: relative; overflow: hidden; }
+.reveal__status-bar span{
+  position: absolute; inset: 0; width: 0%; background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow); transition: width .2s linear;
+}
+.reveal__status-text{
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--grey-dim);
+}
 .reveal__progress{
   position: absolute; left: clamp(20px,4vw,56px); right: clamp(20px,4vw,56px); bottom: 40px; z-index: 2;
   height: 2px; background: var(--line-2);
@@ -596,6 +635,8 @@ section{ position: relative; background: var(--black); }
   .showroom__pin span{ animation: none; box-shadow: 0 0 0 6px rgba(57,255,143,0.18); }
   .hero__video{ transform: none; }
   .showcase__depth{ transform: none !important; }
+  /* the reveal copy is content, not decoration — never leave it masked out */
+  .reveal__line{ transform: none; opacity: 1; }
 }
 
 /* ============================================================

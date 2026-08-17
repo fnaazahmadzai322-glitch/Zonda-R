@@ -330,11 +330,115 @@
   var revealVideo = document.getElementById("revealVideo");
   var revealCallouts = gsap.utils.toArray(".reveal__callout");
   var revealProgressBar = document.getElementById("revealProgressBar");
+  var revealStatus = document.getElementById("revealStatus");
+  var revealStatusText = document.getElementById("revealStatusText");
+  var revealBufferBar = document.getElementById("revealBufferBar");
 
-  // Progress bar + callouts are pure scroll-math and must work the instant
-  // the section is on screen. Video scrubbing is a progressive enhancement
-  // layered on top once the browser actually has duration/metadata — it
-  // must never gate the rest of the section on a network/codec event.
+  /* --- 1. Buffer the clip up front -------------------------------------
+     Scrubbing seeks to arbitrary timestamps. Against a streamed file each
+     seek is a range request, so the frame lands late or not at all and the
+     scrub looks broken. Fetching the whole clip to a blob first makes every
+     seek local and instant. It is a few MB, and it downloads while the
+     visitor is still reading the sections above.                          */
+  var revealReady = false;
+
+  function markRevealReady() {
+    if (revealReady) return;
+    revealReady = true;
+    if (revealStatus) revealStatus.classList.add("is-ready");
+  }
+
+  function bufferRevealVideo() {
+    if (!revealVideo) return;
+    var src = revealVideo.querySelector("source");
+    if (!src || !window.fetch) { markRevealReady(); return; }
+
+    fetch(src.src)
+      .then(function (res) {
+        if (!res.ok || !res.body) throw new Error("no stream");
+        var total = +res.headers.get("Content-Length") || 0;
+        var loaded = 0;
+        var chunks = [];
+        var reader = res.body.getReader();
+
+        return (function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) return new Blob(chunks, { type: "video/mp4" });
+            chunks.push(r.value);
+            loaded += r.value.length;
+            if (total && revealBufferBar) {
+              revealBufferBar.style.width = Math.round((loaded / total) * 100) + "%";
+            }
+            return pump();
+          });
+        })();
+      })
+      .then(function (blob) {
+        // A `src` property beats <source> children, but metadata has to
+        // re-parse against the blob before duration is usable — so always
+        // reload rather than trusting a readyState left over from the
+        // streamed source, and don't hang forever if the decode fails.
+        revealVideo.src = URL.createObjectURL(blob);
+        return new Promise(function (resolve) {
+          var done = false;
+          function finish() { if (!done) { done = true; resolve(); } }
+          revealVideo.addEventListener("loadedmetadata", finish, { once: true });
+          revealVideo.addEventListener("error", finish, { once: true });
+          setTimeout(finish, 8000);
+          revealVideo.load();
+        });
+      })
+      .then(function () {
+        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
+        markRevealReady();
+        ScrollTrigger.refresh();
+      })
+      .catch(function () {
+        // Range streaming still scrubs, just less smoothly — better than nothing.
+        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
+        markRevealReady();
+      });
+  }
+
+  /* --- 2. Coalesce seeks ------------------------------------------------
+     Assigning currentTime while a seek is already in flight makes the
+     browser drop the intermediate targets, which is what makes naive
+     scrubbing stutter. Keep exactly one seek in flight and always resume
+     toward the newest target once it lands.                               */
+  var pendingTime = null;
+  var isSeeking = false;
+
+  function flushSeek() {
+    if (isSeeking || pendingTime === null || !revealVideo || !revealVideo.duration) return;
+    var t = pendingTime;
+    pendingTime = null;
+    isSeeking = true;
+    try { revealVideo.currentTime = t; } catch (e) { isSeeking = false; }
+  }
+
+  if (revealVideo) {
+    revealVideo.addEventListener("seeked", function () {
+      isSeeking = false;
+      flushSeek();
+    });
+    revealVideo.addEventListener("error", function () {
+      isSeeking = false;
+      markRevealReady();
+    });
+  }
+
+  function seekRevealTo(progress) {
+    if (!revealVideo || !revealVideo.duration) return;
+    // hold a hair inside the end: seeking exactly to duration can park on a
+    // blank frame in some browsers
+    pendingTime = Math.min(progress, 0.999) * revealVideo.duration;
+    flushSeek();
+  }
+
+  /* --- 3. Drive it from scroll ----------------------------------------
+     The bar and the text reveals are pure scroll-math and run the moment
+     the section is on screen; the video is layered on when it is ready, so
+     a slow network never leaves the section looking dead.                 */
   ScrollTrigger.create({
     trigger: ".reveal",
     start: "top top",
@@ -342,20 +446,21 @@
     scrub: 0.4,
     onUpdate: function (self) {
       var progress = self.progress;
-      if (revealVideo && revealVideo.duration) {
-        try { revealVideo.currentTime = progress * revealVideo.duration; } catch (e) {}
-      }
+      seekRevealTo(progress);
       revealProgressBar.style.width = (progress * 100) + "%";
       revealCallouts.forEach(function (c) {
         var at = parseFloat(c.dataset.at);
-        c.classList.toggle("is-active", progress >= at && progress < at + 0.22);
+        c.classList.toggle("is-active", progress >= at && progress < at + 0.20);
       });
     }
   });
 
-  if (revealVideo && revealVideo.readyState < 1) {
-    revealVideo.load();
-  }
+  // Start buffering once the visitor is on their way, so the hero is not
+  // competing with it for bandwidth on first paint.
+  ScrollTrigger.create({
+    trigger: ".collection", start: "top bottom", once: true,
+    onEnter: bufferRevealVideo
+  });
 
   /* ---------------------------------------------------------
      PERFORMANCE — driving video autoplay in view + sparks
