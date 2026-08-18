@@ -170,14 +170,14 @@
   }
 
   /* ---------------------------------------------------------
-     COLLECTION — image parallax + stat counters
+     COLLECTION — video-in reveal + stat counters
   --------------------------------------------------------- */
-  // `transform` on #collectionImage belongs solely to the view-switching
+  // `transform` on #collectionVideo belongs solely to the view-switching
   // code below — a scrubbed tween here would overwrite the zoom on the next
   // scroll tick. The intro animates the frame's opacity instead, and the
   // depth that parallax used to provide now comes from the 3D tilt.
   if (!REDUCED) {
-    gsap.from("#collectionImageWrap", {
+    gsap.from("#collectionVideoWrap", {
       opacity: 0, duration: 1.1, ease: "power2.out",
       scrollTrigger: { trigger: "#showcaseViewport", start: "top 80%", once: true }
     });
@@ -189,17 +189,20 @@
   var showcaseViewport = document.getElementById("showcaseViewport");
   var showcaseDepth = document.getElementById("showcaseDepth");
   var showcaseGlow = document.getElementById("showcaseGlow");
-  var showcaseCar = document.getElementById("collectionImage");
+  var showcaseCar = document.getElementById("collectionVideo");
   var showcaseLabel = document.getElementById("showcaseLabel");
   var showcaseIndex = document.getElementById("showcaseIndex");
   var showcaseTicks = gsap.utils.toArray(".showcase__tick");
 
   // Ordered, not keyed by name: scroll progress through the viewport picks
   // an index, so the list order *is* the sequence the visitor scrolls through.
+  // Only scale varies — the content here is a playing video, and cropping to
+  // a fixed object-position on a constantly-moving frame reads as an
+  // accident rather than a chosen composition, unlike it did on a still photo.
   var VIEWS = [
-    { position: "center 30%", scale: 1,    label: "Profile" },
-    { position: "72% 42%",    scale: 1.55, label: "Front" },
-    { position: "30% 66%",    scale: 2.1,  label: "Detail" }
+    { scale: 1,    label: "Overview" },
+    { scale: 1.35, label: "Assembly" },
+    { scale: 1.8,  label: "Detail" }
   ];
 
   if (showcaseViewport && showcaseCar) {
@@ -208,7 +211,6 @@
       if (i === activeView) return;
       activeView = i;
       var view = VIEWS[i];
-      showcaseCar.style.objectPosition = view.position;
       showcaseCar.style.transform = "scale(" + view.scale + ")";
       showcaseLabel.textContent = view.label;
       if (showcaseIndex) showcaseIndex.textContent = (i + 1 < 10 ? "0" : "") + (i + 1);
@@ -312,34 +314,31 @@
   /* =========================================================
      SCROLL-SCRUBBED VIDEO
 
-     Two sections drive a video's playhead from scroll position, so the
-     mechanics live in one place.
+     Two sections drive a video's playhead from scroll position. An earlier
+     version of this fetched each clip to a blob before scrubbing, on the
+     theory that seeking a streamed file issues a range request per seek and
+     the frame lands late. That fetch turned out to be the actual point of
+     failure in production — on at least one real host the video simply
+     never appeared, because everything depended on that fetch succeeding
+     and nothing was visible if it didn't.
 
-     Buffering: scrubbing seeks to arbitrary timestamps, and against a
-     streamed file each seek is a range request — the frame lands late or
-     not at all and the scrub looks broken. Fetching the clip to a blob
-     first makes every seek local and instant.
+     The fix is to stop depending on it. Every <video> here now carries
+     autoplay + loop in the markup, which is the same mechanism every
+     background-video site relies on and works with zero JavaScript: the
+     browser fetches and decodes the file on its own, so there's a frame on
+     screen from the first paint regardless of what this script does. Scroll
+     scrubbing is layered on top as an enhancement — the first seek pauses
+     the loop and hands control to scroll — and if seeking never engages for
+     any reason, the visitor still sees the video playing, just not scrubbed.
 
      Seeking: assigning currentTime while a seek is already in flight makes
-     the browser drop the intermediate targets, which is exactly what makes
-     naive scrubbing stutter. Keep one seek in flight and always resume
-     toward the newest target once it lands.
+     the browser drop the intermediate targets, which is what makes naive
+     scrubbing stutter. Keep one seek in flight and always resume toward the
+     newest target once it lands.
      ========================================================= */
-  function createScrubber(video, opts) {
-    opts = opts || {};
-    var statusEl = opts.status;
-    var textEl = opts.statusText;
-    var barEl = opts.bufferBar;
-    var ready = false;
+  function createScrubber(video) {
     var pendingTime = null;
     var isSeeking = false;
-
-    function markReady() {
-      if (ready) return;
-      ready = true;
-      if (textEl && opts.readyText) textEl.textContent = opts.readyText;
-      if (statusEl) statusEl.classList.add("is-ready");
-    }
 
     function flush() {
       if (isSeeking || pendingTime === null || !video || !video.duration) return;
@@ -351,55 +350,12 @@
 
     if (video) {
       video.addEventListener("seeked", function () { isSeeking = false; flush(); });
-      video.addEventListener("error", function () { isSeeking = false; markReady(); });
-    }
-
-    function buffer() {
-      if (!video) return;
-      var src = video.querySelector("source");
-      if (!src || !window.fetch) { markReady(); return; }
-
-      fetch(src.src)
-        .then(function (res) {
-          if (!res.ok || !res.body) throw new Error("no stream");
-          var total = +res.headers.get("Content-Length") || 0;
-          var loaded = 0;
-          var chunks = [];
-          var reader = res.body.getReader();
-          return (function pump() {
-            return reader.read().then(function (r) {
-              if (r.done) return new Blob(chunks, { type: "video/mp4" });
-              chunks.push(r.value);
-              loaded += r.value.length;
-              if (total && barEl) barEl.style.width = Math.round((loaded / total) * 100) + "%";
-              return pump();
-            });
-          })();
-        })
-        .then(function (blob) {
-          // A `src` property beats <source> children, but metadata has to
-          // re-parse against the blob before duration is usable — so always
-          // reload rather than trusting a readyState left over from the
-          // streamed source, and don't hang forever if the decode fails.
-          video.src = URL.createObjectURL(blob);
-          return new Promise(function (resolve) {
-            var done = false;
-            function finish() { if (!done) { done = true; resolve(); } }
-            video.addEventListener("loadedmetadata", finish, { once: true });
-            video.addEventListener("error", finish, { once: true });
-            setTimeout(finish, 8000);
-            video.load();
-          });
-        })
-        .then(function () { markReady(); ScrollTrigger.refresh(); })
-        // Range streaming still scrubs, just less smoothly — better than nothing.
-        .catch(markReady);
     }
 
     return {
-      buffer: buffer,
       seekTo: function (progress) {
         if (!video || !video.duration) return;
+        if (!video.paused) video.pause();
         // hold a hair inside the end: seeking exactly to duration can park
         // on a blank frame in some browsers
         pendingTime = Math.min(progress, 0.999) * video.duration;
@@ -411,13 +367,7 @@
   /* ---------------------------------------------------------
      HERO — the opening sequence, scrubbed from the very first scroll
   --------------------------------------------------------- */
-  var heroScrubber = createScrubber(heroVideo, {
-    status: document.getElementById("heroStatus"),
-    statusText: document.getElementById("heroStatusText"),
-    bufferBar: document.getElementById("heroBufferBar"),
-    readyText: "Scroll"
-  });
-  heroScrubber.buffer();
+  var heroScrubber = createScrubber(heroVideo);
 
   var heroLines = gsap.utils.toArray(".hero__line");
   var heroScrollCue = document.getElementById("heroScrollCue");
@@ -449,16 +399,10 @@
   var revealCallouts = gsap.utils.toArray(".reveal__callout");
   var revealProgressBar = document.getElementById("revealProgressBar");
 
-  var revealScrubber = createScrubber(revealVideo, {
-    status: document.getElementById("revealStatus"),
-    statusText: document.getElementById("revealStatusText"),
-    bufferBar: document.getElementById("revealBufferBar"),
-    readyText: "Scroll to disassemble"
-  });
+  var revealScrubber = createScrubber(revealVideo);
 
   /* The bar and the text reveals are pure scroll-math and run the moment the
-     section is on screen; the video is layered on when it is ready, so a slow
-     network never leaves the section looking dead. */
+     section is on screen regardless of the video's state. */
   ScrollTrigger.create({
     trigger: ".reveal",
     start: "top top",
@@ -473,13 +417,6 @@
         c.classList.toggle("is-active", progress >= at && progress < at + 0.20);
       });
     }
-  });
-
-  // Buffer the reveal clip once the visitor is on their way, so it is not
-  // competing with the hero's own buffering on first paint.
-  ScrollTrigger.create({
-    trigger: ".collection", start: "top bottom", once: true,
-    onEnter: revealScrubber.buffer
   });
 
   /* ---------------------------------------------------------

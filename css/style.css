@@ -18,10 +18,11 @@
   --text-dim:     rgba(244,246,244,0.48);
   --text-faint:   rgba(244,246,244,0.30);
   /* The accent is the car's own paint, not a generic neon green. Sampled
-     from car photo/RH.jpg: the lit body panels average #d0f020 and the
-     specular highlights #eafa61 — a chartreuse lime at roughly 69° hue.
+     from car photo/RH.jpg (kept in the repo for exactly this — it is not
+     rendered anywhere on the page): the lit body panels average #d0f020 and
+     the specular highlights #eafa61 — a chartreuse lime at roughly 69° hue.
      (An earlier spring-green #39ff8f sat at 146°, a different colour
-     entirely.) Don't re-pick these by eye; re-sample the photo. */
+     entirely.) Don't re-pick these by eye; re-sample a frame of the video. */
   --lime:         #d0f020;  /* lit body panels — the signature colour */
   --lime-2:       #eafa61;  /* specular highlight on the paint */
   --lime-dim:     #4e6b0c;  /* paint in shadow — for quiet borders */
@@ -248,8 +249,10 @@ section{ position: relative; background: var(--black); }
   display: flex; flex-direction: column; justify-content: flex-end;
 }
 .hero__video-wrap{ position: absolute; inset: 0; z-index: 0; }
+/* The video is the whole hero now — no car cutout sits in front of it — so
+   it needs to read as the subject rather than ambient background. */
 .hero__video{
-  width: 100%; height: 100%; object-fit: cover; opacity: 0.55; filter: saturate(0.85) brightness(0.65);
+  width: 100%; height: 100%; object-fit: cover; opacity: 0.92; filter: saturate(1.05) brightness(0.88);
   transform: scale(1.06);
 }
 .hero__scrim{
@@ -268,17 +271,6 @@ section{ position: relative; background: var(--black); }
 .hero__price-block{ display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .hero__price-label{ font-size: 11px; letter-spacing: 0.14em; color: var(--text-soft); text-transform: uppercase; }
 .hero__price{ font-family: var(--font-display); font-size: 22px; letter-spacing: 0.04em; color: var(--text); }
-
-.hero__car-wrap{
-  position: absolute; right: -2%; bottom: 8%; width: min(78vw, 1180px); z-index: 2;
-  margin: 0; pointer-events: none;
-}
-.hero__car{ width: 100%; height: auto; filter: drop-shadow(0 40px 60px rgba(0,0,0,0.7)); }
-.hero__car-glow{
-  position: absolute; left: 10%; right: 10%; bottom: -4%; height: 40%;
-  background: radial-gradient(ellipse at center, var(--lime-glow) 0%, transparent 70%);
-  opacity: 0.35; filter: blur(30px); z-index: -1;
-}
 
 .hero__title-block{
   position: relative; z-index: 3; padding: 0 clamp(20px,4vw,56px) 110px;
@@ -299,20 +291,6 @@ section{ position: relative; background: var(--black); }
 .hero__line.is-in{ transform: translateY(0); opacity: 1; }
 .hero__tagline{ font-size: clamp(14px,1.1vw,17px); font-weight: 300; line-height: 1.6; opacity: 0; }
 .hero__tagline.is-in{ opacity: 0.72; }
-
-/* buffering readout, mirrors the reveal section's */
-.hero__status{
-  position: absolute; right: clamp(20px,4vw,56px); bottom: 34px; z-index: 4;
-  display: flex; align-items: center; gap: 12px;
-  transition: opacity .5s var(--ease);
-}
-.hero__status.is-ready{ opacity: 0; pointer-events: none; }
-.hero__status-bar{ width: 100px; height: 1px; background: var(--line-2); display: block; position: relative; overflow: hidden; }
-.hero__status-bar span{
-  position: absolute; inset: 0; width: 0%; background: var(--lime);
-  box-shadow: 0 0 8px var(--lime-glow); transition: width .2s linear;
-}
-.hero__status-text{ font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; }
 
 .hero__scroll-cue{
   position: absolute; left: clamp(20px,4vw,56px); bottom: 34px; z-index: 3;
@@ -357,13 +335,17 @@ section{ position: relative; background: var(--black); }
 }
 .showcase__viewport:hover .showcase__grid{ opacity: 1; }
 
-.collection__image-wrap{
+.collection__video-wrap{
   position: relative; overflow: hidden; aspect-ratio: 16/10;
   background: var(--carbon); z-index: 2;
 }
-.collection__image{
-  width: 100%; height: 100%; object-fit: cover; object-position: center 30%;
-  transform: scale(1); transition: transform .9s var(--ease), object-position .9s var(--ease);
+/* Object-position isn't varied here the way it was for the old still photo —
+   picking a fixed crop of a frame that's constantly moving reads as an
+   accident, not a composition choice. Depth across the three views comes
+   from scale alone. */
+.collection__video{
+  width: 100%; height: 100%; object-fit: cover; object-position: center center;
+  transform: scale(1); transition: transform .9s var(--ease);
   will-change: transform;
 }
 
@@ -465,21 +447,6 @@ section{ position: relative; background: var(--black); }
 /* the supporting line trails the headline slightly */
 .reveal__callout.is-active .reveal__sub{ transition-delay: .09s; }
 
-/* ---- buffering status ---- */
-.reveal__status{
-  position: absolute; left: clamp(20px,4vw,56px); bottom: 62px; z-index: 3;
-  display: flex; align-items: center; gap: 12px;
-  opacity: 1; transition: opacity .5s var(--ease);
-}
-.reveal__status.is-ready{ opacity: 0; pointer-events: none; }
-.reveal__status-bar{ width: 120px; height: 1px; background: var(--line-2); display: block; position: relative; overflow: hidden; }
-.reveal__status-bar span{
-  position: absolute; inset: 0; width: 0%; background: var(--lime);
-  box-shadow: 0 0 8px var(--lime-glow); transition: width .2s linear;
-}
-.reveal__status-text{
-  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint);
-}
 .reveal__progress{
   position: absolute; left: clamp(20px,4vw,56px); right: clamp(20px,4vw,56px); bottom: 40px; z-index: 2;
   height: 2px; background: var(--line-2);
@@ -698,7 +665,6 @@ section{ position: relative; background: var(--black); }
   .collection__stats{ grid-template-columns: 1fr 1fr; }
   .story__grid, .showroom__grid{ grid-template-columns: 1fr; }
   .contact__top{ grid-template-columns: 1fr 1fr; }
-  .hero__car-wrap{ width: 96vw; right: -6%; }
 }
 @media (max-width: 680px){
   /* 400vh of sticky scrolling is a lot of thumb travel; the same five beats
@@ -708,7 +674,6 @@ section{ position: relative; background: var(--black); }
   .reveal__callouts{ gap: 18px; }
   .reveal__callout{ gap: 14px; }
   .reveal__callout-index{ width: 34px; height: 34px; font-size: 13px; }
-  .reveal__status{ bottom: 56px; }
 
   .consult-form__row{ grid-template-columns: 1fr; }
   .contact__top{ grid-template-columns: 1fr; }
@@ -723,6 +688,5 @@ section{ position: relative; background: var(--black); }
   .hero__price-label{ font-size: 9.5px; letter-spacing: 0.1em; }
   .hero__price{ font-size: 18px; }
   .hero__title-block{ padding-bottom: 170px; }
-  .hero__car-wrap{ bottom: 26%; width: 118vw; right: -18%; }
   .showroom__details li{ grid-template-columns: 1fr; gap: 6px; }
 }

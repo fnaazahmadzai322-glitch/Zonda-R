@@ -2,12 +2,15 @@
 
 A single-page, desktop-first showroom site for a Pagani Zonda R, built around
 scroll-driven cinematic reveals. Black, carbon fibre, and the car's own lime.
+Video only — there is no static photo anywhere on the page.
 
-The accent colour is sampled from `car photo/RH.jpg` rather than chosen by
-eye: the Zonda R's lit body panels average `#d0f020`, a chartreuse lime at
-roughly 69° hue. If you restyle, re-sample the photo — reaching for a
-generic "neon green" lands around 146°, which is a visibly different colour.
-All writing is a single white; the lime is reserved for buttons and graphics.
+The accent colour was sampled from a photo of the car (`car photo/RH.jpg`,
+kept in the repo as a colour reference but not rendered on the page): the
+Zonda R's lit body panels average `#d0f020`, a chartreuse lime at roughly 69°
+hue. If you restyle, re-sample a frame of the video rather than guessing —
+reaching for a generic "neon green" lands around 146°, a visibly different
+colour. All writing is a single white; the lime is reserved for buttons and
+graphics.
 
 > Concept/portfolio piece. Not affiliated with or endorsed by Pagani Automobili
 > S.p.A. The showroom address, phone number and email are placeholders.
@@ -16,9 +19,6 @@ All writing is a single white; the lime is reserved for buttons and graphics.
 
 No build step, no dependencies to install. Everything is vanilla HTML, CSS and
 JavaScript, and GSAP/Lenis are vendored into `assets/vendor/`.
-
-It must be served over HTTP rather than opened as a `file://` URL — the reveal
-section fetches its video with `fetch()`, which `file://` blocks.
 
 ```bash
 python3 -m http.server 8080   # then open http://localhost:8080
@@ -33,9 +33,9 @@ index.html              all markup
 css/style.css           design tokens + every component
 js/main.js              scroll rig, showcase, particles, form
 assets/vendor/          GSAP, ScrollTrigger, Lenis (pinned copies)
-hero/                   hero video
-performance/            driving video
-car photo/              Zonda R still
+hero/                   hero video — also reused for the Engineering reveal
+performance/            second video — also reused for the Collection showcase
+car photo/              Zonda R still, kept only as the colour-sampling source
 ```
 
 Fonts (Bebas Neue, Manrope) load from Google Fonts and fall back to system
@@ -46,10 +46,10 @@ the page keeps working without a CDN.
 
 | # | Section | What drives it |
 |---|---------|----------------|
-| 01 | Hero | Looping video, parallax layers, masked title lines |
-| 02 | Collection | 3D tilt showcase + Profile/Front/Detail view switching |
-| 03 | Engineering | Video scrubbed by scroll, callouts wiped in per beat |
-| 04 | Performance | Driving video, ember/spark particles, heat wash |
+| 01 | Hero | Autoplaying video, scroll-scrubbed once engaged, masked title lines |
+| 02 | Collection | 3D tilt showcase over the second video, Overview/Assembly/Detail zoom by scroll |
+| 03 | Engineering | First video scrubbed by scroll, callouts wiped in per beat |
+| 04 | Performance | Second video, ember/spark particles, heat wash |
 | 05 | Heritage | Carbon-weave surface, staggered reveals |
 | 06 | Showroom | Dubai location, animated map pin |
 | 07 | Consultation | Validated booking form |
@@ -57,33 +57,45 @@ the page keeps working without a CDN.
 
 ## Notes for anyone editing this
 
-**The scrubbed video is buffered to a blob before it scrubs.**
-`bufferRevealVideo()` fetches the clip, reports progress, then swaps
-`video.src` to an object URL. Seeking against a *streamed* file issues a range
-request per seek, so frames arrive late and the scrub looks broken. Buffering
-starts when the visitor reaches the Collection so it never competes with the
-hero for bandwidth, and it falls back to streaming if the fetch fails.
+**Every `<video>` carries `autoplay` and `loop` in the markup, and that is
+load-bearing, not incidental.** An earlier version dropped `autoplay` on the
+hero and reveal videos and made their visibility depend entirely on a custom
+`fetch()`-to-blob step, on the theory that pre-buffering would make scroll
+scrubbing smoother. In production that fetch silently failed — for reasons
+never fully pinned down, likely specific to the host — and because nothing
+else made the video visible, visitors saw a black rectangle where the hero
+should be. `autoplay` is what every background-video site actually relies on:
+it works with zero JavaScript, the browser owns loading the file, and there
+is a frame on screen from first paint no matter what the script does or does
+not manage to do. **Don't remove it in the name of "the video should only
+play when you scroll" — scroll scrubbing is layered on top of autoplay, not
+a replacement for it. See `createScrubber` in `js/main.js` for how the
+handoff works: the first scroll-driven seek calls `.pause()`, and if that
+seek never happens, the video just keeps looping — which is correct, not a
+bug.**
 
 **Seeks are coalesced, never queued.** Assigning `currentTime` while a seek is
 already in flight makes the browser drop the intermediate targets — the usual
-cause of stuttery scrubbing. `flushSeek()` keeps exactly one seek in flight and
-resumes toward the newest target on `seeked`.
+cause of stuttery scrubbing. `createScrubber` keeps exactly one seek in flight
+and resumes toward the newest target on `seeked`.
 
-**Scroll-driven visuals never depend on the video.** The progress bar and the
-text reveals are pure scroll math, so a slow network or a missing codec leaves
-the section degraded but alive rather than blank.
+**Scroll-driven text never depends on the video.** The Engineering section's
+progress bar and callouts are pure scroll math and run the moment the section
+is on screen, independent of whatever state the video is in.
 
-**`transform` on `#collectionImage` belongs solely to view switching.** A
-scrubbed tween on that same property will silently revert the zoom on the next
-scroll tick. Animate the wrapper instead.
+**`transform` on `#collectionVideo` belongs solely to view switching.** A
+scrubbed tween on that same property would silently revert the zoom on the
+next scroll tick. Animate the wrapper (`#collectionVideoWrap`) if you need an
+entrance effect.
 
 **Reduced motion is honoured by not building the animations at all.** A
 `.from()` tween that is created and then killed can strand an element
-mid-fade. Guard with `REDUCED` at construction; counters still write their real
-figures.
+mid-fade. Guard with `REDUCED` at construction; counters still write their
+real figures.
 
-**Scrub quality depends on the clip's keyframe interval.** If scrubbing feels
-chunky even when buffered, re-encode with denser keyframes:
+**If scrubbing feels chunky, it's the source file's keyframe interval, not
+the JS.** Seeking a video with sparse keyframes forces a decode from the
+nearest prior keyframe on every jump. Re-encode with denser keyframes:
 
 ```bash
 ffmpeg -i in.mp4 -c:v libx264 -g 6 -crf 20 -an out.mp4
@@ -97,5 +109,5 @@ Formspree, EmailJS or your own endpoint.
 
 ## Browser support
 
-Current Chrome, Safari, Firefox and Edge. Needs H.264 playback for the videos,
-`fetch` with streaming response bodies for buffering, and CSS `aspect-ratio`.
+Current Chrome, Safari, Firefox and Edge. Needs H.264 playback for the videos
+and CSS `aspect-ratio`.
