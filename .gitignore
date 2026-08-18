@@ -1,0 +1,7 @@
+# Stray output from ad-hoc test/debug scripts run against this repo during
+# development (e.g. a Playwright script writing screenshots with an unset
+# path variable). Twice now this has produced an undefined/ directory of
+# PNGs that got swept into a commit by `git add -A` — this is the actual
+# fix, not another one-off cleanup.
+undefined/
+*.local.png
