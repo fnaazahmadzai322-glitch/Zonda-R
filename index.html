@@ -84,18 +84,53 @@
       </div>
 
       <div class="hero__title-block">
-        <h1 class="hero__title">
-          <span class="hero__mask"><span class="hero__line">Pagani</span></span>
-          <span class="hero__mask"><span class="hero__line">Zonda R</span></span>
-        </h1>
-        <span class="hero__mask hero__mask--tagline">
-          <span class="hero__line hero__tagline">Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise.</span>
-        </span>
+        <div class="hero__chapters" id="heroChapters">
+
+          <!-- 01 — Brand -->
+          <div class="hero__chapter hero__chapter--intro" data-chapter="0">
+            <h1 class="hero__title">
+              <span class="hero__mask"><span class="hero__line">Pagani</span></span>
+              <span class="hero__mask"><span class="hero__line">Zonda R</span></span>
+            </h1>
+            <span class="hero__mask hero__mask--tagline">
+              <span class="hero__line hero__tagline">Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise.</span>
+            </span>
+          </div>
+
+          <!-- 02 — Chassis exposed -->
+          <div class="hero__chapter" data-chapter="1">
+            <h2 class="hero__title">
+              <span class="hero__mask"><span class="hero__line">Carbon</span></span>
+              <span class="hero__mask"><span class="hero__line">Chassis</span></span>
+            </h2>
+            <span class="hero__mask hero__mask--tagline">
+              <span class="hero__line hero__tagline">A single autoclave-cured tub. Six hundred and fifty kilograms, dry.</span>
+            </span>
+          </div>
+
+          <!-- 03 — Engine exposed -->
+          <div class="hero__chapter" data-chapter="2">
+            <h2 class="hero__title">
+              <span class="hero__mask"><span class="hero__line">V12</span></span>
+              <span class="hero__mask"><span class="hero__line">Power</span></span>
+            </h2>
+            <span class="hero__mask hero__mask--tagline">
+              <span class="hero__line hero__tagline">Six litres, naturally aspirated. Seven hundred and fifty horsepower, hand-built in Affalterbach.</span>
+            </span>
+          </div>
+
+        </div>
       </div>
 
       <div class="hero__scroll-cue" id="heroScrollCue">
         <span>Scroll</span>
         <i></i>
+      </div>
+
+      <div class="hero__chapternav" id="heroChapterNav" aria-hidden="true">
+        <span class="hero__chapternav-index" id="heroChapterIndex">01</span>
+        <span class="hero__chapternav-track"><span id="heroChapterBar"></span></span>
+        <span class="hero__chapternav-total">03</span>
       </div>
     </div>
   </section>

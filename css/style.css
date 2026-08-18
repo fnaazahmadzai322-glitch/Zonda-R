@@ -243,7 +243,10 @@ section{ position: relative; background: var(--black); }
    ============================================================ */
 /* The opening is a scroll sequence: the section is tall, its contents stick,
    and scroll position drives both the video's playhead and the title reveal. */
-.hero{ position: relative; height: 260vh; }
+/* 340vh gives three chapters (brand/chassis/engine) room to each hold on
+   screen for a beat rather than flicking past — 260vh was tuned for the
+   single original chapter. */
+.hero{ position: relative; height: 340vh; }
 .hero__sticky{
   position: sticky; top: 0; height: 100vh; min-height: 640px; overflow: hidden;
   display: flex; flex-direction: column; justify-content: flex-end;
@@ -276,29 +279,74 @@ section{ position: relative; background: var(--black); }
   position: relative; z-index: 3; padding: 0 clamp(20px,4vw,56px) 110px;
   max-width: 900px;
 }
+
+/* The hero tells its story in beats — brand, then chassis, then engine —
+   each one taking the exact same spot as the last. Every chapter is
+   absolutely stacked in this box, so .hero__chapters needs an explicit
+   height (its children no longer contribute one) sized to the largest
+   chapter's natural content. */
+.hero__chapters{ position: relative; min-height: clamp(230px, 32vw, 430px); }
+.hero__chapter{
+  position: absolute; inset: 0 auto auto 0; width: 100%;
+  pointer-events: none;
+}
+
 .hero__title{ font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
   font-size: clamp(64px, 11vw, 160px); line-height: 0.86; letter-spacing: 0.01em; }
 
-/* every line rides up out of its own mask as the scroll advances */
+/* Every line lives in its own mask and rides up into view, then — for every
+   chapter but the last — rides on up out of it again as the next chapter's
+   lines rise into the same slot beneath. One consistent wipe language
+   instead of a plain crossfade. */
 .hero__mask{ display: block; overflow: hidden; }
 .hero__mask--tagline{ margin-top: 20px; max-width: 46ch; }
 .hero__line{
   display: block;
   transform: translateY(115%);
-  transition: transform .9s var(--ease), opacity .9s var(--ease);
+  transition: transform 1s var(--ease), opacity 1s var(--ease);
   opacity: 0;
+  /* At this font size a single word longer than the column is silently
+     clipped by the mask's overflow:hidden rather than wrapping — with no
+     visual sign anything was cut. Chapter copy is picked short enough not
+     to hit this, but the next edit that lengthens a word shouldn't have to
+     rediscover that the hard way: wrap it instead of losing it. */
+  overflow-wrap: anywhere;
 }
 .hero__line.is-in{ transform: translateY(0); opacity: 1; }
+.hero__line.is-out{ transform: translateY(-115%); opacity: 0; }
 .hero__tagline{ font-size: clamp(14px,1.1vw,17px); font-weight: 300; line-height: 1.6; opacity: 0; }
 .hero__tagline.is-in{ opacity: 0.72; }
+.hero__tagline.is-out{ opacity: 0; }
 
 .hero__scroll-cue{
   position: absolute; left: clamp(20px,4vw,56px); bottom: 34px; z-index: 3;
   display: flex; align-items: center; gap: 10px; color: var(--text-soft); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  transition: opacity .4s var(--ease);
 }
 .hero__scroll-cue i{
   width: 1px; height: 34px; background: linear-gradient(to bottom, var(--lime), transparent);
   position: relative; overflow: hidden; display: block;
+}
+
+/* Takes over the scroll cue's spot once scrolling starts: which chapter of
+   three, and how far through the hero overall. */
+.hero__chapternav{
+  position: absolute; left: clamp(20px,4vw,56px); bottom: 34px; z-index: 3;
+  display: flex; align-items: center; gap: 12px;
+  opacity: 0; transition: opacity .4s var(--ease);
+}
+.hero__chapternav.is-visible{ opacity: 1; }
+.hero__chapternav-index{
+  /* text stays white, matching the rail's index — the lime lives in the
+     glow, not the writing */
+  font-family: var(--font-display); font-size: 15px; letter-spacing: 0.08em; color: var(--text);
+  text-shadow: 0 0 12px var(--lime-glow);
+}
+.hero__chapternav-total{ font-family: var(--font-display); font-size: 13px; letter-spacing: 0.08em; color: var(--text-faint); }
+.hero__chapternav-track{ width: 90px; height: 1px; background: var(--line-2); position: relative; overflow: hidden; }
+.hero__chapternav-track span{
+  position: absolute; inset: 0; width: 0%; background: var(--lime);
+  box-shadow: 0 0 8px var(--lime-glow); transition: width .2s linear;
 }
 
 /* ============================================================
@@ -636,9 +684,28 @@ section{ position: relative; background: var(--black); }
   /* pulsing map pin is motion for its own sake */
   .showroom__pin span{ animation: none; box-shadow: 0 0 0 6px rgba(208,240,32,0.18); }
   .showcase__depth{ transform: none !important; }
-  /* the hero and reveal copy are content, not decoration — never leave either masked out */
-  .hero__line, .reveal__line{ transform: none; opacity: 1; }
-  .hero__tagline{ opacity: 0.72; }
+  /* the reveal copy is content, not decoration — never leave it masked out.
+     Its five callouts sit in normal document flow (a vertical list), so
+     forcing every .reveal__line visible just turns it into a static list —
+     nothing overlaps. */
+  .reveal__line{ transform: none; opacity: 1; }
+
+  /* The hero's three chapters are a different case: they're stacked
+     absolutely on top of one another so they can crossfade in place, which
+     means forcing every .hero__line visible would overlap three chapters'
+     worth of text into an unreadable pile. There's also no good reduced-
+     motion equivalent of "pin the section for 3.2 screens of scroll while
+     video and text swap underneath" — so instead of adapting the sequence,
+     drop it: the hero becomes a single ordinary viewport-height block
+     showing only the brand chapter, statically. Nothing is lost — the
+     chassis/engine beats it would have teased are covered in full, and
+     unhurried, by the Engineering section further down. */
+  .hero{ height: 100vh; }
+  .hero__sticky{ position: relative; }
+  .hero__chapter:not(.hero__chapter--intro){ display: none; }
+  .hero__chapter--intro .hero__line{ transform: none; opacity: 1; }
+  .hero__chapter--intro .hero__tagline{ opacity: 0.72; }
+  .hero__scroll-cue, .hero__chapternav{ display: none; }
 }
 
 /* ============================================================
@@ -667,6 +734,11 @@ section{ position: relative; background: var(--black); }
   .contact__top{ grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 680px){
+  /* Same reasoning as the reveal section below: a lot of thumb travel for
+     three beats on a phone, so the sequence runs over a shorter track. */
+  .hero{ height: 230vh; }
+  .hero__chapters{ min-height: clamp(190px, 46vw, 320px); }
+
   /* 400vh of sticky scrolling is a lot of thumb travel; the same five beats
      read fine over a shorter track on a phone */
   .reveal{ height: 280vh; }

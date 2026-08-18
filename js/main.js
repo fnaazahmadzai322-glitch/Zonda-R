@@ -368,29 +368,74 @@
      HERO — the opening sequence, scrubbed from the very first scroll
   --------------------------------------------------------- */
   var heroScrubber = createScrubber(heroVideo);
-
-  var heroLines = gsap.utils.toArray(".hero__line");
   var heroScrollCue = document.getElementById("heroScrollCue");
+  var heroChapterNav = document.getElementById("heroChapterNav");
+  var heroChapterIndex = document.getElementById("heroChapterIndex");
+  var heroChapterBar = document.getElementById("heroChapterBar");
 
-  ScrollTrigger.create({
-    trigger: ".hero",
-    start: "top top",
-    end: "bottom bottom",
-    scrub: 0.4,
-    onUpdate: function (self) {
-      var p = self.progress;
-      heroScrubber.seekTo(p);
+  // Three beats told in the same slot: brand, then chassis, then engine —
+  // each a huge headline plus one short line, echoing the Engineering
+  // section below but at hero scale and in miniature. inStart/outStart are
+  // hero-scroll fractions (0–1); each line within a chapter staggers off
+  // that by its index, so lines wipe in and out one at a time rather than
+  // all at once. The last chapter has no outStart — it holds through the
+  // end of the hero rather than clearing the stage for nothing.
+  var CHAPTERS = [
+    { inStart: 0.015, outStart: 0.24 },
+    { inStart: 0.40,  outStart: 0.60 },
+    { inStart: 0.76,  outStart: null }
+  ];
+  var STAGGER = 0.045;
 
-      // The title wipes in over the first stretch of the scroll, one line at
-      // a time, then holds for the rest of the sequence.
-      heroLines.forEach(function (line, i) {
-        line.classList.toggle("is-in", p >= 0.02 + i * 0.05);
-      });
-
-      // the cue has done its job the moment they start scrolling
-      if (heroScrollCue) heroScrollCue.style.opacity = p > 0.04 ? 0 : 1;
-    }
+  var chapterEls = gsap.utils.toArray(".hero__chapter");
+  var chapters = chapterEls.map(function (el, ci) {
+    return {
+      lines: gsap.utils.toArray(".hero__line", el),
+      cfg: CHAPTERS[ci]
+    };
   });
+
+  if (!REDUCED) {
+    ScrollTrigger.create({
+      trigger: ".hero",
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 0.4,
+      onUpdate: function (self) {
+        var p = self.progress;
+        heroScrubber.seekTo(p);
+
+        var current = 0;
+        chapters.forEach(function (chapter, ci) {
+          var cfg = chapter.cfg;
+          chapter.lines.forEach(function (line, i) {
+            var inAt = cfg.inStart + i * STAGGER;
+            var outAt = cfg.outStart === null ? null : cfg.outStart + i * STAGGER;
+            if (p < inAt) {
+              line.classList.remove("is-in", "is-out");
+            } else if (outAt !== null && p >= outAt) {
+              line.classList.remove("is-in");
+              line.classList.add("is-out");
+            } else {
+              line.classList.add("is-in");
+              line.classList.remove("is-out");
+            }
+          });
+          // "current" chapter for the nav readout = the last one that has
+          // started wiping in — matches what's actually readable on screen.
+          if (p >= cfg.inStart) current = ci;
+        });
+
+        if (heroChapterIndex) heroChapterIndex.textContent = "0" + (current + 1);
+        if (heroChapterBar) heroChapterBar.style.width = (p * 100) + "%";
+
+        // the cue and the chapter nav share one job, handed off once scrolling starts
+        var scrolling = p > 0.01;
+        if (heroScrollCue) heroScrollCue.style.opacity = scrolling ? 0 : 1;
+        if (heroChapterNav) heroChapterNav.classList.toggle("is-visible", scrolling);
+      }
+    });
+  }
 
   /* ---------------------------------------------------------
      3D REVEAL — video scrubbed by scroll + callouts
