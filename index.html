@@ -10,15 +10,17 @@
 <!-- the marque's triangle, drawn inline so there is no icon file to ship -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23060706'/%3E%3Cpolygon points='50,18 88,82 12,82' fill='%23d0f020'/%3E%3C/svg%3E">
 
+<!-- No og:image/twitter:image: the site has no static image asset by design
+     (video only), and a link-preview crawler can't render a <video>, so an
+     image tag here would need a dedicated still — pointing it at nothing is
+     more honest than pointing it at an asset the page doesn't use. -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Pagani Zonda R — Private Showroom, Dubai">
 <meta property="og:description" content="Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise. By private appointment in Dubai.">
-<meta property="og:image" content="car%20photo/RH.jpg">
 <meta property="og:locale" content="en_AE">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Pagani Zonda R — Private Showroom, Dubai">
 <meta name="twitter:description" content="Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise.">
-<meta name="twitter:image" content="car%20photo/RH.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -66,7 +68,7 @@
   <section id="hero" class="hero">
     <div class="hero__sticky">
       <div class="hero__video-wrap">
-        <video class="hero__video" muted playsinline preload="auto" id="heroVideo">
+        <video class="hero__video" id="heroVideo" autoplay loop muted playsinline preload="auto">
           <source src="hero/Automotive%20Exploded%20View%20Video%20%281%29.mp4" type="video/mp4">
         </video>
         <div class="hero__scrim"></div>
@@ -81,11 +83,6 @@
         <a href="#consultation" class="btn btn--outline btn--sm">Contact Dealer</a>
       </div>
 
-      <figure class="hero__car-wrap" id="heroCarWrap">
-        <img src="car%20photo/RH.jpg" alt="Pagani Zonda R, lime and carbon fibre livery, gold wheels" class="hero__car" id="heroCar" width="1280" height="720" fetchpriority="high" decoding="async">
-        <div class="hero__car-glow"></div>
-      </figure>
-
       <div class="hero__title-block">
         <h1 class="hero__title">
           <span class="hero__mask"><span class="hero__line">Pagani</span></span>
@@ -99,11 +96,6 @@
       <div class="hero__scroll-cue" id="heroScrollCue">
         <span>Scroll</span>
         <i></i>
-      </div>
-
-      <div class="hero__status" id="heroStatus" aria-live="polite">
-        <span class="hero__status-bar"><span id="heroBufferBar"></span></span>
-        <span class="hero__status-text" id="heroStatusText">Loading</span>
       </div>
     </div>
   </section>
@@ -122,8 +114,10 @@
           <div class="showcase__depth" id="showcaseDepth">
             <div class="showcase__glow" id="showcaseGlow"></div>
             <div class="showcase__grid"></div>
-            <div class="collection__image-wrap" id="collectionImageWrap">
-              <img src="car%20photo/RH.jpg" alt="Pagani Zonda R rear three-quarter view" class="collection__image" id="collectionImage" width="1280" height="720" loading="lazy" decoding="async">
+            <div class="collection__video-wrap" id="collectionVideoWrap">
+              <video class="collection__video" id="collectionVideo" autoplay loop muted playsinline preload="metadata" aria-label="Pagani Zonda R exploded-view render, in motion">
+                <source src="performance/Automotive%20Exploded%20View%20Video%20%283%29.mp4" type="video/mp4">
+              </video>
             </div>
             <span class="showcase__reticle showcase__reticle--tl"></span>
             <span class="showcase__reticle showcase__reticle--tr"></span>
@@ -132,7 +126,7 @@
           </div>
           <div class="showcase__readout">
             <span class="showcase__readout-index" id="showcaseIndex">01</span>
-            <span class="showcase__readout-label" id="showcaseLabel">Profile</span>
+            <span class="showcase__readout-label" id="showcaseLabel">Overview</span>
           </div>
         </div>
 
@@ -175,7 +169,7 @@
   <!-- ============ 3D REVEAL / EXPLODED VIEW ============ -->
   <section id="reveal" class="reveal">
     <div class="reveal__sticky">
-      <video class="reveal__video" muted playsinline preload="auto" id="revealVideo">
+      <video class="reveal__video" id="revealVideo" autoplay loop muted playsinline preload="auto">
         <source src="hero/Automotive%20Exploded%20View%20Video%20%281%29.mp4" type="video/mp4">
       </video>
       <div class="reveal__scrim"></div>
@@ -224,17 +218,12 @@
       </div>
 
       <div class="reveal__progress"><span id="revealProgressBar"></span></div>
-
-      <div class="reveal__status" id="revealStatus" aria-live="polite">
-        <span class="reveal__status-bar"><span id="revealBufferBar"></span></span>
-        <span class="reveal__status-text" id="revealStatusText">Loading sequence</span>
-      </div>
     </div>
   </section>
 
   <!-- ============ PERFORMANCE ============ -->
   <section id="performance" class="performance">
-    <video class="performance__video" muted playsinline loop id="perfVideo">
+    <video class="performance__video" id="perfVideo" autoplay loop muted playsinline>
       <source src="performance/Automotive%20Exploded%20View%20Video%20%283%29.mp4" type="video/mp4">
     </video>
     <div class="performance__scrim"></div>
