@@ -254,10 +254,10 @@ section{ position: relative; background: var(--black); }
 .hero__video-wrap{ position: absolute; inset: 0; z-index: 0; }
 /* The video is the whole hero now — no car cutout sits in front of it — so
    it needs to read as the subject rather than ambient background. Full
-   brightness, no dimming filter: matches how the Engineering section treats
-   its own video (see .reveal__video below), which is the reference point
-   for how vivid this should look. Darkening for text legibility comes
-   entirely from the scrim, same division of labour as Engineering. */
+   brightness, no dimming filter: matches the Engineering section's own
+   scrim numbers below (.reveal__scrim), which is the reference point for
+   how vivid this should look. Darkening for text legibility comes entirely
+   from the scrim, same division of labour as Engineering. */
 .hero__video{
   width: 100%; height: 100%; object-fit: cover;
   transform: scale(1.06);
@@ -447,7 +447,15 @@ section{ position: relative; background: var(--black); }
   position: sticky; top: 0; height: 100vh; overflow: hidden;
   display: flex; flex-direction: column; justify-content: center;
 }
-.reveal__video{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* A still photo, not a scrub — the section's 400vh of scroll has no
+   footage timeline to expose, so a slow scroll-linked zoom (driven in JS,
+   see the reveal ScrollTrigger) carries the motion instead. transform-origin
+   keeps the zoom centred on the car rather than drifting toward a corner. */
+.reveal__image{
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  object-position: center 35%; transform-origin: center 35%;
+  will-change: transform;
+}
 .reveal__scrim{
   position: absolute; inset: 0;
   background: linear-gradient(to bottom, rgba(6,7,6,0.92) 0%, rgba(6,7,6,0.15) 30%, rgba(6,7,6,0.15) 70%, rgba(6,7,6,0.92) 100%);

@@ -477,16 +477,18 @@
   }
 
   /* ---------------------------------------------------------
-     3D REVEAL — video scrubbed by scroll + callouts
+     3D REVEAL — still photo + callouts scrubbed by scroll
   --------------------------------------------------------- */
-  var revealVideo = document.getElementById("revealVideo");
+  var revealImage = document.getElementById("revealImage");
   var revealCallouts = gsap.utils.toArray(".reveal__callout");
   var revealProgressBar = document.getElementById("revealProgressBar");
 
-  var revealScrubber = createScrubber(revealVideo);
-
   /* The bar and the text reveals are pure scroll-math and run the moment the
-     section is on screen regardless of the video's state. */
+     section is on screen. There's no footage to scrub against a still photo,
+     so a slow continuous zoom carries the section's motion instead — that
+     part is decorative, so it's skipped under reduced motion same as the
+     hero/performance/showroom parallax elsewhere; the bar and callouts never
+     are, because they're content. */
   ScrollTrigger.create({
     trigger: ".reveal",
     start: "top top",
@@ -494,7 +496,9 @@
     scrub: 0.4,
     onUpdate: function (self) {
       var progress = self.progress;
-      revealScrubber.seekTo(progress);
+      if (!REDUCED && revealImage) {
+        revealImage.style.transform = "scale(" + (1 + progress * 0.18) + ")";
+      }
       revealProgressBar.style.width = (progress * 100) + "%";
       revealCallouts.forEach(function (c) {
         var at = parseFloat(c.dataset.at);
