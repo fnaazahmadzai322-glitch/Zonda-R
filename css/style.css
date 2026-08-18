@@ -253,20 +253,21 @@ section{ position: relative; background: var(--black); }
 }
 .hero__video-wrap{ position: absolute; inset: 0; z-index: 0; }
 /* The video is the whole hero now — no car cutout sits in front of it — so
-   it needs to read as the subject rather than ambient background. */
+   it needs to read as the subject rather than ambient background. Full
+   brightness, no dimming filter: matches how the Engineering section treats
+   its own video (see .reveal__video below), which is the reference point
+   for how vivid this should look. Darkening for text legibility comes
+   entirely from the scrim, same division of labour as Engineering. */
 .hero__video{
-  width: 100%; height: 100%; object-fit: cover; opacity: 0.92; filter: saturate(1.05) brightness(0.88);
+  width: 100%; height: 100%; object-fit: cover;
   transform: scale(1.06);
 }
 .hero__scrim{
   position: absolute; inset: 0;
   background:
-    linear-gradient(to top, rgba(6,7,6,1) 0%, rgba(6,7,6,0.55) 32%, rgba(6,7,6,0.25) 55%, rgba(6,7,6,0.55) 100%),
-    linear-gradient(to right, rgba(6,7,6,0.75) 0%, rgba(6,7,6,0.05) 45%);
+    linear-gradient(to top, rgba(6,7,6,0.95) 0%, rgba(6,7,6,0.5) 18%, rgba(6,7,6,0.18) 40%, rgba(6,7,6,0.18) 62%, rgba(6,7,6,0.6) 100%),
+    linear-gradient(to right, rgba(6,7,6,0.5) 0%, rgba(6,7,6,0.02) 45%);
 }
-.hero__carbon{ position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay; background: var(--carbon);
-  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 9px); }
-
 .hero__topbar{
   position: absolute; top: 110px; right: clamp(20px,4vw,56px); z-index: 3;
   display: flex; align-items: center; gap: 22px;

@@ -335,30 +335,69 @@
      the browser drop the intermediate targets, which is what makes naive
      scrubbing stutter. Keep one seek in flight and always resume toward the
      newest target once it lands.
+
+     Handoff from autoplay to scroll must be irreversible. The first seek
+     calls .pause(), but the video still carries the `loop` attribute in the
+     markup — if pause doesn't fully land before the browser's own loop
+     logic checks in (a buffering stall, a timing race, any of several
+     device-specific quirks that don't reproduce in every environment), the
+     native loop can resume and the video keeps playing on its own while the
+     text — pure scroll-math, independent of the video — keeps tracking
+     scroll correctly. The result: text moves, video doesn't, and they look
+     disconnected. So once scrubbing engages: drop the loop attribute
+     entirely (there is no correct reason for it to still be set once scroll
+     owns the playhead), and if `play` ever fires afterward anyway, treat it
+     as a bug and immediately re-pause — self-healing regardless of what
+     triggered it, rather than a fix aimed at one specific cause.
      ========================================================= */
   function createScrubber(video) {
     var pendingTime = null;
     var isSeeking = false;
+    var seekTimeoutId = null;
+    var engaged = false;
+
+    function duration() {
+      var d = video && video.duration;
+      return isFinite(d) && d > 0 ? d : null;
+    }
 
     function flush() {
-      if (isSeeking || pendingTime === null || !video || !video.duration) return;
+      var d = duration();
+      if (isSeeking || pendingTime === null || !d) return;
       var t = pendingTime;
       pendingTime = null;
       isSeeking = true;
+      // Safety valve: if `seeked` never fires (it won't, for a target the
+      // browser treats as a no-op, among other edge cases), don't let that
+      // wedge every future seek — self-clear and let the next one through.
+      clearTimeout(seekTimeoutId);
+      seekTimeoutId = setTimeout(function () { isSeeking = false; flush(); }, 400);
       try { video.currentTime = t; } catch (e) { isSeeking = false; }
     }
 
     if (video) {
-      video.addEventListener("seeked", function () { isSeeking = false; flush(); });
+      video.addEventListener("seeked", function () {
+        clearTimeout(seekTimeoutId);
+        isSeeking = false;
+        flush();
+      });
+      video.addEventListener("play", function () {
+        if (engaged) video.pause();
+      });
     }
 
     return {
       seekTo: function (progress) {
-        if (!video || !video.duration) return;
+        var d = duration();
+        if (!d) return;
+        if (!engaged) {
+          engaged = true;
+          video.loop = false;
+        }
         if (!video.paused) video.pause();
         // hold a hair inside the end: seeking exactly to duration can park
         // on a blank frame in some browsers
-        pendingTime = Math.min(progress, 0.999) * video.duration;
+        pendingTime = Math.min(progress, 0.999) * d;
         flush();
       }
     };
