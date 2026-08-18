@@ -38,7 +38,6 @@
     setTimeout(function () {
       loader.classList.add("is-hidden");
       document.body.style.overflow = "";
-      playHeroIntro();
     }, 260);
   }
 
@@ -146,49 +145,16 @@
     }
   });
 
-  /* ---------------------------------------------------------
-     HERO INTRO
-  --------------------------------------------------------- */
-  function playHeroIntro() {
-    if (REDUCED) return;
-    var tl = gsap.timeline({ defaults: { ease: "power4.out" } });
-    tl.from(".hero__topbar", { y: -24, opacity: 0, duration: 0.9 }, 0.1)
-      .from(".hero__car", { opacity: 0, scale: 1.08, filter: "brightness(0.4)", duration: 1.4, ease: "power3.out" }, 0.15)
-      .from(".hero__title .reveal-line", {
-        yPercent: 120, opacity: 0, duration: 1.1, stagger: 0.12
-      }, 0.5)
-      .from(".hero__tagline", { y: 16, opacity: 0, duration: 0.8 }, 0.85)
-      .from(".hero__scroll-cue", { opacity: 0, duration: 0.8 }, 1.0)
-      // clearProps is required: a lingering transform on .nav would become the
-      // containing block for the position:fixed mobile menu, clipping it to the header.
-      .from(".nav", { y: -20, opacity: 0, duration: 0.7, clearProps: "transform" }, 0.2);
-  }
-
   // Fallback in case JS runs before load event races
   window.addEventListener("load", function () {
     if (loader && !loader.classList.contains("is-hidden")) finishLoader();
   });
 
-  /* Hero parallax on scroll */
-  if (!REDUCED) {
-    gsap.to(".hero__car-wrap", {
-      yPercent: 12,
-      ease: "none",
-      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-    });
-    gsap.to(".hero__video", {
-      yPercent: 10,
-      scale: 1.12,
-      ease: "none",
-      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-    });
-    gsap.to(".hero__title-block", {
-      yPercent: -18,
-      opacity: 0.2,
-      ease: "none",
-      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true }
-    });
-  }
+  // The hero's own motion — video scrub, title wipe, car reveal — is driven
+  // entirely by the scroll rig set up below (see "HERO — the opening
+  // sequence"). It replaces what used to be a load-time intro timeline plus a
+  // separate parallax pass: one scroll-linked source of truth instead of two
+  // animations racing each other over the same elements.
 
   /* ---------------------------------------------------------
      SECTION HEAD REVEALS (generic)
@@ -225,12 +191,47 @@
   var showcaseGlow = document.getElementById("showcaseGlow");
   var showcaseCar = document.getElementById("collectionImage");
   var showcaseLabel = document.getElementById("showcaseLabel");
+  var showcaseIndex = document.getElementById("showcaseIndex");
+  var showcaseTicks = gsap.utils.toArray(".showcase__tick");
 
-  var VIEWS = {
-    profile: { position: "center 30%", scale: 1,    label: "Profile" },
-    front:   { position: "72% 42%",    scale: 1.55, label: "Front" },
-    wheel:   { position: "30% 66%",    scale: 2.1,  label: "Detail" }
-  };
+  // Ordered, not keyed by name: scroll progress through the viewport picks
+  // an index, so the list order *is* the sequence the visitor scrolls through.
+  var VIEWS = [
+    { position: "center 30%", scale: 1,    label: "Profile" },
+    { position: "72% 42%",    scale: 1.55, label: "Front" },
+    { position: "30% 66%",    scale: 2.1,  label: "Detail" }
+  ];
+
+  if (showcaseViewport && showcaseCar) {
+    var activeView = -1;
+    function setView(i) {
+      if (i === activeView) return;
+      activeView = i;
+      var view = VIEWS[i];
+      showcaseCar.style.objectPosition = view.position;
+      showcaseCar.style.transform = "scale(" + view.scale + ")";
+      showcaseLabel.textContent = view.label;
+      if (showcaseIndex) showcaseIndex.textContent = (i + 1 < 10 ? "0" : "") + (i + 1);
+      showcaseTicks.forEach(function (t, ti) { t.classList.toggle("is-active", ti === i); });
+      if (!REDUCED) {
+        gsap.fromTo(showcaseLabel, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
+      }
+    }
+
+    // The car drifts through Profile → Front → Detail purely as it crosses
+    // the viewport — no click target, matching every other reveal on the
+    // page, which all fire from the mouse wheel rather than a control.
+    ScrollTrigger.create({
+      trigger: showcaseViewport,
+      start: "top 75%",
+      end: "bottom 25%",
+      onUpdate: function (self) {
+        var i = Math.min(VIEWS.length - 1, Math.floor(self.progress * VIEWS.length));
+        setView(i);
+      },
+      onLeaveBack: function () { setView(0); }
+    });
+  }
 
   if (showcaseViewport && showcaseDepth) {
     var tiltX = 0, tiltY = 0, targetX = 0, targetY = 0, tiltRAF = null;
@@ -269,22 +270,6 @@
         queueTilt();
       });
     }
-
-    document.querySelectorAll(".showcase__tab").forEach(function (tab) {
-      tab.addEventListener("click", function () {
-        var view = VIEWS[tab.dataset.view];
-        if (!view) return;
-        document.querySelectorAll(".showcase__tab").forEach(function (t) {
-          var on = t === tab;
-          t.classList.toggle("is-active", on);
-          t.setAttribute("aria-pressed", on ? "true" : "false");
-        });
-        showcaseCar.style.objectPosition = view.position;
-        showcaseCar.style.transform = "scale(" + view.scale + ")";
-        showcaseLabel.textContent = view.label;
-        gsap.fromTo(showcaseLabel, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
-      });
-    });
   }
 
   function writeCount(el, value, decimals) {
@@ -324,121 +309,156 @@
     });
   });
 
+  /* =========================================================
+     SCROLL-SCRUBBED VIDEO
+
+     Two sections drive a video's playhead from scroll position, so the
+     mechanics live in one place.
+
+     Buffering: scrubbing seeks to arbitrary timestamps, and against a
+     streamed file each seek is a range request — the frame lands late or
+     not at all and the scrub looks broken. Fetching the clip to a blob
+     first makes every seek local and instant.
+
+     Seeking: assigning currentTime while a seek is already in flight makes
+     the browser drop the intermediate targets, which is exactly what makes
+     naive scrubbing stutter. Keep one seek in flight and always resume
+     toward the newest target once it lands.
+     ========================================================= */
+  function createScrubber(video, opts) {
+    opts = opts || {};
+    var statusEl = opts.status;
+    var textEl = opts.statusText;
+    var barEl = opts.bufferBar;
+    var ready = false;
+    var pendingTime = null;
+    var isSeeking = false;
+
+    function markReady() {
+      if (ready) return;
+      ready = true;
+      if (textEl && opts.readyText) textEl.textContent = opts.readyText;
+      if (statusEl) statusEl.classList.add("is-ready");
+    }
+
+    function flush() {
+      if (isSeeking || pendingTime === null || !video || !video.duration) return;
+      var t = pendingTime;
+      pendingTime = null;
+      isSeeking = true;
+      try { video.currentTime = t; } catch (e) { isSeeking = false; }
+    }
+
+    if (video) {
+      video.addEventListener("seeked", function () { isSeeking = false; flush(); });
+      video.addEventListener("error", function () { isSeeking = false; markReady(); });
+    }
+
+    function buffer() {
+      if (!video) return;
+      var src = video.querySelector("source");
+      if (!src || !window.fetch) { markReady(); return; }
+
+      fetch(src.src)
+        .then(function (res) {
+          if (!res.ok || !res.body) throw new Error("no stream");
+          var total = +res.headers.get("Content-Length") || 0;
+          var loaded = 0;
+          var chunks = [];
+          var reader = res.body.getReader();
+          return (function pump() {
+            return reader.read().then(function (r) {
+              if (r.done) return new Blob(chunks, { type: "video/mp4" });
+              chunks.push(r.value);
+              loaded += r.value.length;
+              if (total && barEl) barEl.style.width = Math.round((loaded / total) * 100) + "%";
+              return pump();
+            });
+          })();
+        })
+        .then(function (blob) {
+          // A `src` property beats <source> children, but metadata has to
+          // re-parse against the blob before duration is usable — so always
+          // reload rather than trusting a readyState left over from the
+          // streamed source, and don't hang forever if the decode fails.
+          video.src = URL.createObjectURL(blob);
+          return new Promise(function (resolve) {
+            var done = false;
+            function finish() { if (!done) { done = true; resolve(); } }
+            video.addEventListener("loadedmetadata", finish, { once: true });
+            video.addEventListener("error", finish, { once: true });
+            setTimeout(finish, 8000);
+            video.load();
+          });
+        })
+        .then(function () { markReady(); ScrollTrigger.refresh(); })
+        // Range streaming still scrubs, just less smoothly — better than nothing.
+        .catch(markReady);
+    }
+
+    return {
+      buffer: buffer,
+      seekTo: function (progress) {
+        if (!video || !video.duration) return;
+        // hold a hair inside the end: seeking exactly to duration can park
+        // on a blank frame in some browsers
+        pendingTime = Math.min(progress, 0.999) * video.duration;
+        flush();
+      }
+    };
+  }
+
+  /* ---------------------------------------------------------
+     HERO — the opening sequence, scrubbed from the very first scroll
+  --------------------------------------------------------- */
+  var heroScrubber = createScrubber(heroVideo, {
+    status: document.getElementById("heroStatus"),
+    statusText: document.getElementById("heroStatusText"),
+    bufferBar: document.getElementById("heroBufferBar"),
+    readyText: "Scroll"
+  });
+  heroScrubber.buffer();
+
+  var heroLines = gsap.utils.toArray(".hero__line");
+  var heroScrollCue = document.getElementById("heroScrollCue");
+
+  ScrollTrigger.create({
+    trigger: ".hero",
+    start: "top top",
+    end: "bottom bottom",
+    scrub: 0.4,
+    onUpdate: function (self) {
+      var p = self.progress;
+      heroScrubber.seekTo(p);
+
+      // The title wipes in over the first stretch of the scroll, one line at
+      // a time, then holds for the rest of the sequence.
+      heroLines.forEach(function (line, i) {
+        line.classList.toggle("is-in", p >= 0.02 + i * 0.05);
+      });
+
+      // the cue has done its job the moment they start scrolling
+      if (heroScrollCue) heroScrollCue.style.opacity = p > 0.04 ? 0 : 1;
+    }
+  });
+
   /* ---------------------------------------------------------
      3D REVEAL — video scrubbed by scroll + callouts
   --------------------------------------------------------- */
   var revealVideo = document.getElementById("revealVideo");
   var revealCallouts = gsap.utils.toArray(".reveal__callout");
   var revealProgressBar = document.getElementById("revealProgressBar");
-  var revealStatus = document.getElementById("revealStatus");
-  var revealStatusText = document.getElementById("revealStatusText");
-  var revealBufferBar = document.getElementById("revealBufferBar");
 
-  /* --- 1. Buffer the clip up front -------------------------------------
-     Scrubbing seeks to arbitrary timestamps. Against a streamed file each
-     seek is a range request, so the frame lands late or not at all and the
-     scrub looks broken. Fetching the whole clip to a blob first makes every
-     seek local and instant. It is a few MB, and it downloads while the
-     visitor is still reading the sections above.                          */
-  var revealReady = false;
+  var revealScrubber = createScrubber(revealVideo, {
+    status: document.getElementById("revealStatus"),
+    statusText: document.getElementById("revealStatusText"),
+    bufferBar: document.getElementById("revealBufferBar"),
+    readyText: "Scroll to disassemble"
+  });
 
-  function markRevealReady() {
-    if (revealReady) return;
-    revealReady = true;
-    if (revealStatus) revealStatus.classList.add("is-ready");
-  }
-
-  function bufferRevealVideo() {
-    if (!revealVideo) return;
-    var src = revealVideo.querySelector("source");
-    if (!src || !window.fetch) { markRevealReady(); return; }
-
-    fetch(src.src)
-      .then(function (res) {
-        if (!res.ok || !res.body) throw new Error("no stream");
-        var total = +res.headers.get("Content-Length") || 0;
-        var loaded = 0;
-        var chunks = [];
-        var reader = res.body.getReader();
-
-        return (function pump() {
-          return reader.read().then(function (r) {
-            if (r.done) return new Blob(chunks, { type: "video/mp4" });
-            chunks.push(r.value);
-            loaded += r.value.length;
-            if (total && revealBufferBar) {
-              revealBufferBar.style.width = Math.round((loaded / total) * 100) + "%";
-            }
-            return pump();
-          });
-        })();
-      })
-      .then(function (blob) {
-        // A `src` property beats <source> children, but metadata has to
-        // re-parse against the blob before duration is usable — so always
-        // reload rather than trusting a readyState left over from the
-        // streamed source, and don't hang forever if the decode fails.
-        revealVideo.src = URL.createObjectURL(blob);
-        return new Promise(function (resolve) {
-          var done = false;
-          function finish() { if (!done) { done = true; resolve(); } }
-          revealVideo.addEventListener("loadedmetadata", finish, { once: true });
-          revealVideo.addEventListener("error", finish, { once: true });
-          setTimeout(finish, 8000);
-          revealVideo.load();
-        });
-      })
-      .then(function () {
-        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
-        markRevealReady();
-        ScrollTrigger.refresh();
-      })
-      .catch(function () {
-        // Range streaming still scrubs, just less smoothly — better than nothing.
-        if (revealStatusText) revealStatusText.textContent = "Scroll to disassemble";
-        markRevealReady();
-      });
-  }
-
-  /* --- 2. Coalesce seeks ------------------------------------------------
-     Assigning currentTime while a seek is already in flight makes the
-     browser drop the intermediate targets, which is what makes naive
-     scrubbing stutter. Keep exactly one seek in flight and always resume
-     toward the newest target once it lands.                               */
-  var pendingTime = null;
-  var isSeeking = false;
-
-  function flushSeek() {
-    if (isSeeking || pendingTime === null || !revealVideo || !revealVideo.duration) return;
-    var t = pendingTime;
-    pendingTime = null;
-    isSeeking = true;
-    try { revealVideo.currentTime = t; } catch (e) { isSeeking = false; }
-  }
-
-  if (revealVideo) {
-    revealVideo.addEventListener("seeked", function () {
-      isSeeking = false;
-      flushSeek();
-    });
-    revealVideo.addEventListener("error", function () {
-      isSeeking = false;
-      markRevealReady();
-    });
-  }
-
-  function seekRevealTo(progress) {
-    if (!revealVideo || !revealVideo.duration) return;
-    // hold a hair inside the end: seeking exactly to duration can park on a
-    // blank frame in some browsers
-    pendingTime = Math.min(progress, 0.999) * revealVideo.duration;
-    flushSeek();
-  }
-
-  /* --- 3. Drive it from scroll ----------------------------------------
-     The bar and the text reveals are pure scroll-math and run the moment
-     the section is on screen; the video is layered on when it is ready, so
-     a slow network never leaves the section looking dead.                 */
+  /* The bar and the text reveals are pure scroll-math and run the moment the
+     section is on screen; the video is layered on when it is ready, so a slow
+     network never leaves the section looking dead. */
   ScrollTrigger.create({
     trigger: ".reveal",
     start: "top top",
@@ -446,7 +466,7 @@
     scrub: 0.4,
     onUpdate: function (self) {
       var progress = self.progress;
-      seekRevealTo(progress);
+      revealScrubber.seekTo(progress);
       revealProgressBar.style.width = (progress * 100) + "%";
       revealCallouts.forEach(function (c) {
         var at = parseFloat(c.dataset.at);
@@ -455,11 +475,11 @@
     }
   });
 
-  // Start buffering once the visitor is on their way, so the hero is not
-  // competing with it for bandwidth on first paint.
+  // Buffer the reveal clip once the visitor is on their way, so it is not
+  // competing with the hero's own buffering on first paint.
   ScrollTrigger.create({
     trigger: ".collection", start: "top bottom", once: true,
-    onEnter: bufferRevealVideo
+    onEnter: revealScrubber.buffer
   });
 
   /* ---------------------------------------------------------

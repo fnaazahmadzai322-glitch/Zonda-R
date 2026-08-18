@@ -64,38 +64,47 @@
 
   <!-- ============ HERO ============ -->
   <section id="hero" class="hero">
-    <div class="hero__video-wrap">
-      <video class="hero__video" autoplay muted loop playsinline id="heroVideo">
-        <source src="hero/Automotive%20Exploded%20View%20Video%20%281%29.mp4" type="video/mp4">
-      </video>
-      <div class="hero__scrim"></div>
-      <div class="hero__carbon"></div>
-    </div>
-
-    <div class="hero__topbar">
-      <div class="hero__price-block">
-        <span class="hero__price-label">Zonda R &middot; Track Homologated</span>
-        <span class="hero__price">Price On Request</span>
+    <div class="hero__sticky">
+      <div class="hero__video-wrap">
+        <video class="hero__video" muted playsinline preload="auto" id="heroVideo">
+          <source src="hero/Automotive%20Exploded%20View%20Video%20%281%29.mp4" type="video/mp4">
+        </video>
+        <div class="hero__scrim"></div>
+        <div class="hero__carbon"></div>
       </div>
-      <a href="#consultation" class="btn btn--outline btn--sm">Contact Dealer</a>
-    </div>
 
-    <figure class="hero__car-wrap">
-      <img src="car%20photo/RH.jpg" alt="Pagani Zonda R, lime and carbon fibre livery, gold wheels" class="hero__car" id="heroCar" width="1280" height="720" fetchpriority="high" decoding="async">
-      <div class="hero__car-glow"></div>
-    </figure>
+      <div class="hero__topbar">
+        <div class="hero__price-block">
+          <span class="hero__price-label">Zonda R &middot; Track Homologated</span>
+          <span class="hero__price">Price On Request</span>
+        </div>
+        <a href="#consultation" class="btn btn--outline btn--sm">Contact Dealer</a>
+      </div>
 
-    <div class="hero__title-block">
-      <h1 class="hero__title">
-        <span class="reveal-line">Pagani</span>
-        <span class="reveal-line hero__title--accent">Zonda R</span>
-      </h1>
-      <p class="hero__tagline">Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise.</p>
-    </div>
+      <figure class="hero__car-wrap" id="heroCarWrap">
+        <img src="car%20photo/RH.jpg" alt="Pagani Zonda R, lime and carbon fibre livery, gold wheels" class="hero__car" id="heroCar" width="1280" height="720" fetchpriority="high" decoding="async">
+        <div class="hero__car-glow"></div>
+      </figure>
 
-    <div class="hero__scroll-cue">
-      <span>Scroll</span>
-      <i></i>
+      <div class="hero__title-block">
+        <h1 class="hero__title">
+          <span class="hero__mask"><span class="hero__line">Pagani</span></span>
+          <span class="hero__mask"><span class="hero__line">Zonda R</span></span>
+        </h1>
+        <span class="hero__mask hero__mask--tagline">
+          <span class="hero__line hero__tagline">Six hundred and fifty kilograms of carbon-titanium. One naturally aspirated AMG V12. Zero compromise.</span>
+        </span>
+      </div>
+
+      <div class="hero__scroll-cue" id="heroScrollCue">
+        <span>Scroll</span>
+        <i></i>
+      </div>
+
+      <div class="hero__status" id="heroStatus" aria-live="polite">
+        <span class="hero__status-bar"><span id="heroBufferBar"></span></span>
+        <span class="hero__status-text" id="heroStatusText">Loading</span>
+      </div>
     </div>
   </section>
 
@@ -122,15 +131,15 @@
             <span class="showcase__reticle showcase__reticle--br"></span>
           </div>
           <div class="showcase__readout">
+            <span class="showcase__readout-index" id="showcaseIndex">01</span>
             <span class="showcase__readout-label" id="showcaseLabel">Profile</span>
-            <span class="showcase__readout-hint">Move cursor to explore</span>
           </div>
         </div>
 
-        <div class="showcase__tabs" id="showcaseTabs">
-          <button type="button" class="showcase__tab is-active" data-view="profile" aria-pressed="true"><em>01</em>Profile</button>
-          <button type="button" class="showcase__tab" data-view="front" aria-pressed="false"><em>02</em>Front</button>
-          <button type="button" class="showcase__tab" data-view="wheel" aria-pressed="false"><em>03</em>Detail</button>
+        <div class="showcase__ticks" id="showcaseTicks" aria-hidden="true">
+          <span class="showcase__tick is-active"></span>
+          <span class="showcase__tick"></span>
+          <span class="showcase__tick"></span>
         </div>
       </div>
 
