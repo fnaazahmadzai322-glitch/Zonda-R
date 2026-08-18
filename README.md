@@ -1,7 +1,13 @@
 # Pagani Zonda R — Private Showroom, Dubai
 
 A single-page, desktop-first showroom site for a Pagani Zonda R, built around
-scroll-driven cinematic reveals. Black, neon green and carbon fibre.
+scroll-driven cinematic reveals. Black, carbon fibre, and the car's own lime.
+
+The accent colour is sampled from `car photo/RH.jpg` rather than chosen by
+eye: the Zonda R's lit body panels average `#d0f020`, a chartreuse lime at
+roughly 69° hue. If you restyle, re-sample the photo — reaching for a
+generic "neon green" lands around 146°, which is a visibly different colour.
+All writing is a single white; the lime is reserved for buttons and graphics.
 
 > Concept/portfolio piece. Not affiliated with or endorsed by Pagani Automobili
 > S.p.A. The showroom address, phone number and email are placeholders.
